@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1076476905696",
+    "project_id": "mindlock-c5aa7",
+    "storage_bucket": "mindlock-c5aa7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1076476905696:android:79d37a062638679e906885",
+        "android_client_info": {
+          "package_name": "com.mindlock.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCOauBL2ZVAscrTOByBfj-GEHEjOcrOn3c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
