@@ -11,13 +11,20 @@ class SleepScreen extends ConsumerStatefulWidget {
 }
 
 class _SleepScreenState extends ConsumerState<SleepScreen> with TickerProviderStateMixin {
-  int _selectedMinutes = 30;
+  int _selectedSeconds = 30 * 60;
   int _remainingSeconds = 0;
   bool _isActive = false;
   Timer? _refreshTimer;
   late AnimationController _pulseController;
 
-  final _presets = [5, 15, 30, 45, 60, 90];
+  final List<Map<String, dynamic>> _presets = [
+    {'label': '10s', 'seconds': 10},
+    {'label': '30s', 'seconds': 30},
+    {'label': '5m', 'seconds': 5 * 60},
+    {'label': '15m', 'seconds': 15 * 60},
+    {'label': '30m', 'seconds': 30 * 60},
+    {'label': '1h', 'seconds': 60 * 60},
+  ];
 
   @override
   void initState() {
@@ -69,10 +76,11 @@ class _SleepScreenState extends ConsumerState<SleepScreen> with TickerProviderSt
   }
 
   Future<void> _start() async {
-    await PlatformChannel.startSleepTimer(_selectedMinutes);
+    // Send seconds to native
+    await PlatformChannel.startSleepTimerSeconds(_selectedSeconds);
     setState(() {
       _isActive = true;
-      _remainingSeconds = _selectedMinutes * 60;
+      _remainingSeconds = _selectedSeconds;
     });
     _startRefreshTimer();
   }
@@ -94,7 +102,6 @@ class _SleepScreenState extends ConsumerState<SleepScreen> with TickerProviderSt
       backgroundColor: const Color(0xFF020408),
       body: Stack(
         children: [
-          // Ambient Pulse Background
           AnimatedBuilder(
             animation: _pulseController,
             builder: (context, child) {
@@ -132,7 +139,6 @@ class _SleepScreenState extends ConsumerState<SleepScreen> with TickerProviderSt
                 const Spacer(),
 
                 if (_isActive) ...[
-                  // Active Timer
                   Container(
                     width: 250,
                     height: 250,
@@ -166,13 +172,13 @@ class _SleepScreenState extends ConsumerState<SleepScreen> with TickerProviderSt
                   ),
                   const SizedBox(height: 40),
                   const Text(
-                    'Background timer is active.\nMedia will stop even if you close the app.',
+                    'Aggressive Sleep Timer is Active.\nScreen will lock and apps will close.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white38, fontSize: 13, height: 1.6),
                   ),
                 ] else ...[
                   const Text(
-                    'Background Sleep Timer',
+                    'Brutal Sleep Timer',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 32,
@@ -181,28 +187,27 @@ class _SleepScreenState extends ConsumerState<SleepScreen> with TickerProviderSt
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'Timer runs in the background. Good for YouTube/Insta.',
+                    'Kills media, clears screen, and locks phone.',
                     style: TextStyle(color: Colors.white54, fontSize: 14),
                   ),
                   const SizedBox(height: 60),
                   
-                  // Presets
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 40),
                     child: Wrap(
                       spacing: 20,
                       runSpacing: 20,
                       alignment: WrapAlignment.center,
-                      children: _presets.map((m) {
-                        final isSelected = m == _selectedMinutes;
+                      children: _presets.map((p) {
+                        final isSelected = p['seconds'] == _selectedSeconds;
                         return GestureDetector(
                           onTap: () => setState(() {
-                            _selectedMinutes = m;
+                            _selectedSeconds = p['seconds'] as int;
                           }),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 300),
-                            width: 70,
-                            height: 70,
+                            width: 75,
+                            height: 75,
                             decoration: BoxDecoration(
                               color: isSelected ? AppTheme.primaryPurple : Colors.white.withOpacity(0.05),
                               borderRadius: BorderRadius.circular(20),
@@ -212,7 +217,7 @@ class _SleepScreenState extends ConsumerState<SleepScreen> with TickerProviderSt
                             ),
                             alignment: Alignment.center,
                             child: Text(
-                              '$m',
+                              p['label'] as String,
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 18,
@@ -242,7 +247,7 @@ class _SleepScreenState extends ConsumerState<SleepScreen> with TickerProviderSt
                         elevation: 0,
                       ),
                       child: Text(
-                        _isActive ? 'CANCEL TIMER' : 'START TIMER',
+                        _isActive ? 'CANCEL TIMER' : 'START BRUTAL SLEEP',
                         style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1),
                       ),
                     ),

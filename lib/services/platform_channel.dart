@@ -219,6 +219,12 @@ class PlatformChannel {
     } catch (_) {}
   }
 
+  static Future<void> startSleepTimerSeconds(int seconds) async {
+    try {
+      await _channel.invokeMethod('startSleepTimerSeconds', {'seconds': seconds});
+    } catch (_) {}
+  }
+
   static Future<void> stopSleepTimer() async {
     try {
       await _channel.invokeMethod('stopSleepTimer');

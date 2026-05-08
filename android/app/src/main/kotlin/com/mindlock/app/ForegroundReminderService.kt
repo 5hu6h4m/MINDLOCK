@@ -28,8 +28,8 @@ class ForegroundReminderService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action
         if (action == "START_SLEEP_TIMER") {
-            val minutes = intent.getIntExtra("minutes", 0)
-            sleepTimerEndTime = System.currentTimeMillis() + (minutes * 60 * 1000)
+            val seconds = intent.getIntExtra("seconds", 0)
+            sleepTimerEndTime = System.currentTimeMillis() + (seconds * 1000)
             isSleepTimerActive = true
             startTimerCheck()
         } else if (action == "STOP_SLEEP_TIMER") {
@@ -56,7 +56,7 @@ class ForegroundReminderService : Service() {
                 val seconds = (remainingMs / 1000) % 60
                 val timeStr = String.format("%02d:%02d", minutes, seconds)
                 
-                updateNotification("Sleep Timer Active", "Media will stop in $timeStr")
+                updateNotification("Brutal Sleep Timer", "Killing all in $timeStr")
                 handler.postDelayed(this, 1000)
             }
         }
@@ -67,16 +67,24 @@ class ForegroundReminderService : Service() {
         try {
             val audioManager = getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
             
-            // Gain focus to pause others
+            // 1. Brutal Audio Focus Takeover
             audioManager.requestAudioFocus(null, android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
             
+            // 2. Media Pause Keys
             val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE)
             val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE)
             audioManager.dispatchMediaKeyEvent(eventDown)
             audioManager.dispatchMediaKeyEvent(eventUp)
 
+            // 3. Clear Screen / Go Home
             MindLockAccessibilityService.instance?.navigateHome()
-            updateNotification("Sleep Timer Ended", "All media stopped.")
+            
+            // 4. Force Lock / Screen Off (Wait 500ms for Home to settle)
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                MainActivity.instance?.lockDevice()
+            }, 500)
+
+            updateNotification("Sleep Mode Active", "Device locked. Sleep well.")
         } catch (e: Exception) {
             android.util.Log.e("MINDLOCK", "Sleep kill failed: ${e.message}")
         }
@@ -105,7 +113,6 @@ class ForegroundReminderService : Service() {
             .setOngoing(true)
             .setSilent(true)
             .setPriority(NotificationCompat.PRIORITY_MIN)
-            .setVisibility(NotificationCompat.VISIBILITY_SECRET)
             .build()
     }
 

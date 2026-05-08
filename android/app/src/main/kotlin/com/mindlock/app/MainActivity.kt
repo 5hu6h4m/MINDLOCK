@@ -23,6 +23,29 @@ class MainActivity : FlutterActivity() {
 
     private var flutterChannel: MethodChannel? = null
 
+    companion object {
+        var instance: MainActivity? = null
+    }
+
+    override fun onCreate(saved: android.os.Bundle?) {
+        super.onCreate(saved)
+        instance = this
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (instance == this) instance = null
+    }
+
+    fun lockDevice() {
+        try {
+            val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            dpm.lockNow()
+        } catch (e: Exception) {
+            Log.e("MINDLOCK", "Lock failed: ${e.message}")
+        }
+    }
+
     private val missionEscapeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == "com.MindLock.MISSION_ESCAPE_ATTEMPT") {
@@ -212,7 +235,21 @@ class MainActivity : FlutterActivity() {
                         val minutes = call.argument<Int>("minutes") ?: 0
                         val intent = Intent(this, ForegroundReminderService::class.java).apply {
                             action = "START_SLEEP_TIMER"
-                            putExtra("minutes", minutes)
+                            putExtra("seconds", minutes * 60)
+                        }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            startForegroundService(intent)
+                        } else {
+                            startService(intent)
+                        }
+                        result.success(true)
+                    }
+
+                    "startSleepTimerSeconds" -> {
+                        val seconds = call.argument<Int>("seconds") ?: 0
+                        val intent = Intent(this, ForegroundReminderService::class.java).apply {
+                            action = "START_SLEEP_TIMER"
+                            putExtra("seconds", seconds)
                         }
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             startForegroundService(intent)
