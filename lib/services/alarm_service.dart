@@ -19,6 +19,8 @@ class AlarmService {
       timeMs: reminder.dateTime.millisecondsSinceEpoch,
       priority: reminder.priorityIndex,
       tone: reminder.tone,
+      repeatIntervalMinutes: reminder.repeatIntervalMinutes,
+      remainingRepeats: reminder.remainingRepeats,
     );
     
     debugPrint('MINDLOCK: Scheduled NATIVE alarm for ${reminder.title} at ${reminder.dateTime}');

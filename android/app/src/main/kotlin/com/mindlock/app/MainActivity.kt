@@ -316,6 +316,8 @@ class MainActivity : FlutterActivity() {
                             putExtra("body", body)
                             putExtra("priority", priority)
                             putExtra("tone", tone)
+                            putExtra("repeatInterval", call.argument<Int>("repeatIntervalMinutes") ?: 0)
+                            putExtra("remainingRepeats", call.argument<Int>("remainingRepeats") ?: 0)
                         }
                         
                         val pendingIntent = PendingIntent.getBroadcast(

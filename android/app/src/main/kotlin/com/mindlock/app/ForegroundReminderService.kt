@@ -30,9 +30,6 @@ class ForegroundReminderService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Restart self if killed
-        val restartIntent = Intent(applicationContext, ForegroundReminderService::class.java)
-        startService(restartIntent)
     }
 
     private fun buildNotification(): Notification {
@@ -44,25 +41,31 @@ class ForegroundReminderService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("MindLock Active")
-            .setContentText("Monitoring your reminders and focus schedule")
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle("MindLock")
+            .setContentText("Core Engine Running")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentIntent(openIntent)
             .setOngoing(true)
             .setSilent(true)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET)
             .build()
     }
 
     private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            "MindLock Service",
-            NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = "Running in background to manage reminders"
-            setShowBadge(false)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "MindLock Core System",
+                NotificationManager.IMPORTANCE_MIN
+            ).apply {
+                description = "Background synchronization"
+                setShowBadge(false)
+                enableLights(false)
+                enableVibration(false)
+            }
+            val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            nm.createNotificationChannel(channel)
         }
-        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        nm.createNotificationChannel(channel)
     }
 }
