@@ -690,26 +690,6 @@ class _QuickActionsGrid extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final actions = [
       _QAction(
-          icon: Icons.add_alarm_rounded,
-          label: 'Add Reminder',
-          color: AppTheme.primaryPurple,
-          onTap: () => context.push('/reminders/create')),
-      _QAction(
-          icon: Icons.rocket_launch_rounded,
-          label: 'Mission Mode',
-          color: AppTheme.accentAmber,
-          onTap: () => context.push('/mission/create')),
-      _QAction(
-          icon: Icons.bedtime_rounded,
-          label: 'Sleep Timer',
-          color: AppTheme.accentBlue,
-          onTap: () => context.go('/sleep')),
-      _QAction(
-          icon: Icons.warning_amber_rounded,
-          label: 'Emergency',
-          color: AppTheme.accentRed,
-          onTap: () => context.push('/reminders/create')),
-      _QAction(
           icon: Icons.not_interested_rounded,
           label: 'Anti-Scroll',
           color: AppTheme.accentCyan,
@@ -730,6 +710,26 @@ class _QuickActionsGrid extends ConsumerWidget {
               );
             }
           }),
+      _QAction(
+          icon: Icons.add_alarm_rounded,
+          label: 'Add Reminder',
+          color: AppTheme.primaryPurple,
+          onTap: () => context.push('/reminders/create')),
+      _QAction(
+          icon: Icons.rocket_launch_rounded,
+          label: 'Mission Mode',
+          color: AppTheme.accentAmber,
+          onTap: () => context.push('/mission/create')),
+      _QAction(
+          icon: Icons.bedtime_rounded,
+          label: 'Sleep Timer',
+          color: AppTheme.accentBlue,
+          onTap: () => context.go('/sleep')),
+      _QAction(
+          icon: Icons.warning_amber_rounded,
+          label: 'Emergency',
+          color: AppTheme.accentRed,
+          onTap: () => context.push('/reminders/create')),
     ];
 
     return GridView.count(

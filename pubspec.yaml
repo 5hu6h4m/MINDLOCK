@@ -1,7 +1,7 @@
 name: mindlock
 description: MindLock - Digital Discipline & Smart Reminder System
 publish_to: 'none'
-version: 1.0.1+2
+version: 1.0.3+3
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
