@@ -201,6 +201,14 @@ class PlatformChannel {
     }
   }
 
+  static Future<bool> setDeepSleepMode(bool enabled) async {
+    try {
+      return await _channel.invokeMethod<bool>('setDeepSleepMode', {'enabled': enabled}) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Check if DND access is granted
   static Future<bool> isDNDPermissionGranted() async {
     try {

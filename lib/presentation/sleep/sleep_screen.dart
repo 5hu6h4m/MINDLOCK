@@ -10,17 +10,28 @@ class SleepScreen extends ConsumerStatefulWidget {
   ConsumerState<SleepScreen> createState() => _SleepScreenState();
 }
 
-class _SleepScreenState extends ConsumerState<SleepScreen> {
+class _SleepScreenState extends ConsumerState<SleepScreen> with TickerProviderStateMixin {
   int _selectedMinutes = 30;
   int _remainingSeconds = 30 * 60;
   bool _isActive = false;
   Timer? _timer;
+  late AnimationController _pulseController;
 
-  final _presets = [10, 20, 30, 45, 60];
+  final _presets = [5, 15, 30, 45, 60, 90];
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 4000),
+    )..repeat(reverse: true);
+  }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _pulseController.dispose();
     super.dispose();
   }
 
@@ -29,14 +40,36 @@ class _SleepScreenState extends ConsumerState<SleepScreen> {
       _isActive = true;
       _remainingSeconds = _selectedMinutes * 60;
     });
+
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_remainingSeconds <= 0) {
-        _stop();
-        _showSilentWarning();
+        _onTimerEnd();
         return;
       }
       setState(() => _remainingSeconds--);
     });
+  }
+
+  Future<void> _onTimerEnd() async {
+    _timer?.cancel();
+    setState(() {
+      _isActive = false;
+      _remainingSeconds = _selectedMinutes * 60;
+    });
+
+    // Aggressive Kill: Stop media and go to Home
+    // DND is NOT used as per user request to allow calls.
+    await PlatformChannel.pauseMedia();
+    await PlatformChannel.goHome();
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sleep Timer Ended: Media Stopped 🛌'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   void _stop() {
@@ -45,14 +78,6 @@ class _SleepScreenState extends ConsumerState<SleepScreen> {
       _isActive = false;
       _remainingSeconds = _selectedMinutes * 60;
     });
-  }
-
-  void _showSilentWarning() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const _SilentWarningDialog(),
-    );
   }
 
   String get _timeDisplay {
@@ -64,230 +89,168 @@ class _SleepScreenState extends ConsumerState<SleepScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.bgDark,
-      appBar: AppBar(
-        backgroundColor: AppTheme.bgDark,
-        title: const Text('Media Sleep Timer', style: TextStyle(letterSpacing: 0.5)),
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-          physics: const BouncingScrollPhysics(),
-          children: [
-            const Text(
-              'TIMER',
-              style: TextStyle(
-                color: AppTheme.textMuted,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.5,
-              ),
-            ),
-            const SizedBox(height: 12),
+      backgroundColor: const Color(0xFF020408),
+      body: Stack(
+        children: [
+          // Ambient Pulse Background
+          AnimatedBuilder(
+            animation: _pulseController,
+            builder: (context, child) {
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFF1A237E).withOpacity(0.1 * _pulseController.value),
+                      const Color(0xFF020408),
+                    ],
+                    radius: 1.5,
+                  ),
+                ),
+              );
+            },
+          ),
 
-            if (_isActive)
-              Container(
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  color: AppTheme.bgDarkCard,
-                  border: Border.all(color: AppTheme.borderColor),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      _timeDisplay,
-                      style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 64,
-                        fontWeight: FontWeight.w300,
-                        letterSpacing: -2,
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
                       ),
+                      const Spacer(),
+                      const Icon(Icons.timer_outlined, color: AppTheme.primaryPurple, size: 24),
+                    ],
+                  ),
+                ),
+
+                const Spacer(),
+
+                if (_isActive) ...[
+                  // Active Timer
+                  Container(
+                    width: 250,
+                    height: 250,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppTheme.primaryPurple.withOpacity(0.2), width: 1),
                     ),
-                    const SizedBox(height: 8),
-                    const Text('REMAINING', style: TextStyle(color: AppTheme.textMuted, fontSize: 12, letterSpacing: 2)),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: _stop,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.textPrimary,
-                          side: const BorderSide(color: AppTheme.borderColor),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    alignment: Alignment.center,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _timeDisplay,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 64,
+                            fontWeight: FontWeight.w200,
+                          ),
                         ),
-                        child: const Text('CANCEL TIMER', style: TextStyle(letterSpacing: 1)),
-                      ),
+                        const Text(
+                          'UNTIL SLEEP',
+                          style: TextStyle(
+                            color: AppTheme.primaryPurple,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 4,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              )
-            else
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: AppTheme.bgDarkCard,
-                  border: Border.all(color: AppTheme.borderColor),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Select Duration', style: TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 8),
-                    const Text('Music and background media will be stopped when the timer ends.', style: TextStyle(color: AppTheme.textMuted, fontSize: 13, height: 1.5)),
-                    const SizedBox(height: 24),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
+                  ),
+                  const SizedBox(height: 40),
+                  const Text(
+                    'Enjoy your media.\nApps will close when time is up.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white38, fontSize: 14, height: 1.6),
+                  ),
+                ] else ...[
+                  const Text(
+                    'Media Sleep Timer',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Auto-stop apps and music when you sleep.',
+                    style: TextStyle(color: Colors.white54, fontSize: 14),
+                  ),
+                  const SizedBox(height: 60),
+                  
+                  // Presets
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40),
+                    child: Wrap(
+                      spacing: 20,
+                      runSpacing: 20,
+                      alignment: WrapAlignment.center,
                       children: _presets.map((m) {
-                        final sel = m == _selectedMinutes;
+                        final isSelected = m == _selectedMinutes;
                         return GestureDetector(
                           onTap: () => setState(() {
                             _selectedMinutes = m;
                             _remainingSeconds = m * 60;
                           }),
-                          child: Container(
-                            width: 60,
-                            height: 60,
-                            alignment: Alignment.center,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            width: 70,
+                            height: 70,
                             decoration: BoxDecoration(
-                              color: sel ? AppTheme.textPrimary : AppTheme.bgDarkElevated,
-                              border: Border.all(color: sel ? AppTheme.textPrimary : AppTheme.borderColor),
-                              borderRadius: BorderRadius.circular(4),
+                              color: isSelected ? AppTheme.primaryPurple : Colors.white.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isSelected ? AppTheme.primaryPurple : Colors.white10,
+                              ),
                             ),
+                            alignment: Alignment.center,
                             child: Text(
                               '$m',
                               style: TextStyle(
-                                color: sel ? AppTheme.bgDark : AppTheme.textSecondary,
-                                fontSize: 20,
-                                fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w400,
                               ),
                             ),
                           ),
                         );
                       }).toList(),
                     ),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _start,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.textPrimary,
-                          foregroundColor: AppTheme.bgDark,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                        ),
-                        child: const Text('START SLEEP TIMER', style: TextStyle(letterSpacing: 1, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+
+                const Spacer(),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 60,
+                    child: ElevatedButton(
+                      onPressed: _isActive ? _stop : _start,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _isActive ? Colors.white.withOpacity(0.05) : AppTheme.primaryPurple,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        _isActive ? 'CANCEL TIMER' : 'START TIMER',
+                        style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1),
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SilentWarningDialog extends StatefulWidget {
-  const _SilentWarningDialog();
-
-  @override
-  State<_SilentWarningDialog> createState() => _SilentWarningDialogState();
-}
-
-class _SilentWarningDialogState extends State<_SilentWarningDialog> {
-  int _secondsLeft = 10;
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _startCountdown();
-  }
-
-  void _startCountdown() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_secondsLeft <= 1) {
-        _timer?.cancel();
-        _killBackgroundMedia();
-        if (mounted) Navigator.pop(context);
-      } else {
-        setState(() => _secondsLeft--);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _killBackgroundMedia() async {
-    try {
-      await PlatformChannel.pauseMedia();
-      await PlatformChannel.lockScreen();
-    } catch (e) {
-      debugPrint('Failed to kill media: \$e');
-    }
-  }
-
-  void _cancelKill() {
-    _timer?.cancel();
-    Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.all(24),
-      child: GestureDetector(
-        onTap: _cancelKill,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(32),
-          decoration: BoxDecoration(
-            color: AppTheme.bgDarkCard,
-            border: Border.all(color: AppTheme.borderColor, width: 2),
-            borderRadius: BorderRadius.circular(4),
+              ],
+            ),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.bedtime_outlined, color: AppTheme.textMuted, size: 48),
-              const SizedBox(height: 24),
-              const Text(
-                'SLEEP TIMER ENDED',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 2,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                '$_secondsLeft',
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 72,
-                  fontWeight: FontWeight.w300,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Tap anywhere to stay awake',
-                style: TextStyle(color: AppTheme.textMuted, fontSize: 14),
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }

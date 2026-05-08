@@ -195,8 +195,17 @@ class MainActivity : FlutterActivity() {
                                 result.success(false)
                             }
                         } else {
-                            result.success(false)
+                            result.success(true)
                         }
+                    }
+
+                    "setDeepSleepMode" -> {
+                        val enabled = call.argument<Boolean>("enabled") ?: false
+                        MindLockAccessibilityService.isDeepSleepActive = enabled
+                        if (enabled) {
+                            MindLockAccessibilityService.instance?.navigateHome()
+                        }
+                        result.success(true)
                     }
 
                     "isDNDPermissionGranted" -> {

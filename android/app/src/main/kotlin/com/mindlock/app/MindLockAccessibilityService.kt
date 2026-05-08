@@ -3,6 +3,7 @@ package com.mindlock.app
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.view.accessibility.AccessibilityEvent
+import android.util.Log
 
 class MindLockAccessibilityService : AccessibilityService() {
 
@@ -29,18 +30,20 @@ class MindLockAccessibilityService : AccessibilityService() {
         )
 
         var instance: MindLockAccessibilityService? = null
-        var isSleepTimerActive = false
-        var sleepTimerEndTime = 0L
+        
+        // Deep Sleep State
+        var isDeepSleepActive = false
 
         // Mission Mode State
         var isMissionActive = false
         var missionBlockedPackages = setOf<String>()
-        var missionIntensity = "medium" // light, medium, hardcore
+        var missionIntensity = "medium" // light, medium, hardcore, strict
     }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        Log.d("MINDLOCK", "Accessibility Service Connected")
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -48,29 +51,36 @@ class MindLockAccessibilityService : AccessibilityService() {
 
         val packageName = event.packageName?.toString() ?: return
 
-        // Mission Mode Blocking Logic
-        if (isMissionActive && missionIntensity != "light") {
+        // 1. Deep Sleep Blocking (Block EVERYTHING except SAFE_PACKAGES)
+        if (isDeepSleepActive) {
+            if (packageName !in SAFE_PACKAGES) {
+                performGlobalAction(GLOBAL_ACTION_HOME)
+                Log.d("MINDLOCK", "Sleep Blocking: $packageName")
+                return
+            }
+        }
+
+        // 2. Mission Mode Blocking Logic
+        if (isMissionActive) {
             // Never block safe apps
             if (packageName in SAFE_PACKAGES) return
 
-            if (packageName in missionBlockedPackages) {
-                // Force exit
+            // If STRICT mission mode with empty package list, block ALL entertainment
+            val shouldBlock = if (missionIntensity == "STRICT" && missionBlockedPackages.isEmpty()) {
+                packageName in ENTERTAINMENT_PACKAGES
+            } else {
+                packageName in missionBlockedPackages
+            }
+
+            if (shouldBlock && missionIntensity != "light") {
                 performGlobalAction(GLOBAL_ACTION_HOME)
                 
                 // Send broadcast to MainActivity -> Flutter
                 val intent = Intent("com.MindLock.MISSION_ESCAPE_ATTEMPT")
                 intent.putExtra("package", packageName)
                 sendBroadcast(intent)
+                Log.d("MINDLOCK", "Mission Blocking: $packageName")
                 return
-            }
-        }
-
-        // Check if sleep timer is active and entertainment app is foreground
-        if (isSleepTimerActive && packageName in ENTERTAINMENT_PACKAGES) {
-            val now = System.currentTimeMillis()
-            if (now >= sleepTimerEndTime) {
-                // Timer ended while watching entertainment
-                triggerSleepMode()
             }
         }
     }
@@ -85,20 +95,13 @@ class MindLockAccessibilityService : AccessibilityService() {
     }
 
     fun triggerSleepMode() {
-        // Navigate to home
         performGlobalAction(GLOBAL_ACTION_HOME)
-
-        // Lock screen after short delay
         android.os.Handler(mainLooper).postDelayed({
             performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
-        }, 2000)
+        }, 1000)
     }
 
     fun navigateHome() {
         performGlobalAction(GLOBAL_ACTION_HOME)
-    }
-
-    fun showRecentApps() {
-        performGlobalAction(GLOBAL_ACTION_RECENTS)
     }
 }
