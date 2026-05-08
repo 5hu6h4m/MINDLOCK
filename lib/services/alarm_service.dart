@@ -18,6 +18,7 @@ class AlarmService {
       body: reminder.description,
       timeMs: reminder.dateTime.millisecondsSinceEpoch,
       priority: reminder.priorityIndex,
+      tone: reminder.tone,
     );
     
     debugPrint('MINDLOCK: Scheduled NATIVE alarm for ${reminder.title} at ${reminder.dateTime}');

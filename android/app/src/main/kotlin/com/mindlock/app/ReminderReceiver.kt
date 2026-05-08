@@ -18,23 +18,29 @@ class ReminderReceiver : BroadcastReceiver() {
         val body = intent.getStringExtra("body") ?: "Time to stay focused!"
         val id = intent.getIntExtra("id", 101)
         val priority = intent.getIntExtra("priority", 1)
+        val tone = intent.getStringExtra("tone") ?: "default"
 
-        Log.d("MINDLOCK", "ALARM FIRED: $title (ID: $id)")
+        Log.d("MINDLOCK", "ALARM FIRED: $title (Tone: $tone)")
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channelId = "MINDLOCK_URGENT_CHANNEL"
+        val channelId = "MINDLOCK_URGENT_CHANNEL_$tone"
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "MindLock Urgent Alerts", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "High priority reminders"
+            val channel = NotificationChannel(channelId, "MindLock Alerts ($tone)", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Reminders with $tone tone"
                 enableLights(true)
                 enableVibration(true)
                 setBypassDnd(true)
                 lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
                 
-                val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                val soundUri = when (tone) {
+                    "soft" -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                    "urgent" -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                    else -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                }
+                
                 val audioAttributes = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setUsage(if (tone == "soft") AudioAttributes.USAGE_NOTIFICATION else AudioAttributes.USAGE_ALARM)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
                 setSound(soundUri, audioAttributes)
@@ -42,7 +48,6 @@ class ReminderReceiver : BroadcastReceiver() {
             notificationManager.createNotificationChannel(channel)
         }
 
-        // 1. Force open the app ACTIVITY
         val alarmIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
             putExtra("route", "/alarm")
@@ -58,7 +63,6 @@ class ReminderReceiver : BroadcastReceiver() {
             Log.e("MINDLOCK", "Activity start failed: ${e.message}")
         }
 
-        // 2. Also show a persistent NOTIFICATION
         val pendingIntent = PendingIntent.getActivity(
             context, id, alarmIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE

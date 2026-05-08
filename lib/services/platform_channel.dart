@@ -78,6 +78,7 @@ class PlatformChannel {
     required String body,
     required int timeMs,
     required int priority,
+    String tone = 'default',
   }) async {
     try {
       final bool result = await _channel.invokeMethod('scheduleNativeReminder', {
@@ -86,6 +87,7 @@ class PlatformChannel {
         'body': body,
         'timeMs': timeMs,
         'priority': priority,
+        'tone': tone,
       });
       return result;
     } catch (e) {

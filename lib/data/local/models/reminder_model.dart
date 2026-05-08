@@ -24,6 +24,7 @@ class ReminderModel extends HiveObject {
   @HiveField(16) bool isIgnored;
   @HiveField(17) int snoozeCount;
   @HiveField(18) int autoRescheduleMinutes;
+  @HiveField(19) String tone;
 
   ReminderModel({
     required this.id,
@@ -45,6 +46,7 @@ class ReminderModel extends HiveObject {
     this.isIgnored = false,
     this.snoozeCount = 0,
     this.autoRescheduleMinutes = 120, // 2 hours default
+    this.tone = 'default',
   });
 
   ReminderPriority get priority => ReminderPriority.values[priorityIndex];
@@ -68,6 +70,7 @@ class ReminderModel extends HiveObject {
     bool? isIgnored,
     int? snoozeCount,
     int? autoRescheduleMinutes,
+    String? tone,
   }) {
     return ReminderModel(
       id: id,

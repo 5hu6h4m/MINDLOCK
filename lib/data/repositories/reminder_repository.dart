@@ -29,6 +29,7 @@ class ReminderRepository {
     int strictTypeIndex = 0,
     bool isPersistent = false,
     int vibrationIntensity = 1,
+    String tone = 'default',
   }) async {
     final reminder = ReminderModel(
       id: _uuid.v4(),
@@ -45,6 +46,7 @@ class ReminderRepository {
       isPersistent: isPersistent,
       vibrationIntensity: vibrationIntensity,
       createdAt: DateTime.now(),
+      tone: tone,
     );
     await _box.put(reminder.id, reminder);
     

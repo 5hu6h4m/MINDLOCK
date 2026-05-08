@@ -23,6 +23,7 @@ class _CreateReminderScreenState extends ConsumerState<CreateReminderScreen>
 
   DateTime _selectedDate = DateTime.now().add(const Duration(hours: 1));
   ReminderPriority _priority = ReminderPriority.medium;
+  String _selectedTone = 'default';
   RepeatInterval _repeatInterval = RepeatInterval.fiveMin;
   int _repeatCount = 1;
   bool _isFullScreenMode = false;
@@ -102,35 +103,66 @@ class _CreateReminderScreenState extends ConsumerState<CreateReminderScreen>
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
 
-    await ref.read(reminderRepositoryProvider).createReminder(
-          title: _titleController.text.trim(),
-          description: _descController.text.trim(),
-          dateTime: _selectedDate,
-          priorityIndex: _priority.index,
-          repeatIntervalMinutes: _repeatInterval == RepeatInterval.custom
-              ? 5
-              : _repeatInterval.minutes,
-          repeatCount: _repeatCount,
-          isFullScreenMode: _isFullScreenMode,
-          isStrictMode: _isStrictMode,
-          strictTypeIndex: _strictType.index,
-          isPersistent: _isPersistent,
-          vibrationIntensity: _vibrationIntensity,
-        );
+    try {
+      await ref.read(reminderRepositoryProvider).createReminder(
+            title: _titleController.text.trim(),
+            description: _descController.text.trim(),
+            dateTime: _selectedDate,
+            priorityIndex: _priority.index,
+            repeatIntervalMinutes: _repeatInterval == RepeatInterval.custom
+                ? 5
+                : _repeatInterval.minutes,
+            repeatCount: _repeatCount,
+            isFullScreenMode: _isFullScreenMode,
+            isStrictMode: _isStrictMode,
+            strictTypeIndex: _strictType.index,
+            isPersistent: _isPersistent,
+            vibrationIntensity: _vibrationIntensity,
+            tone: _selectedTone,
+          );
 
-    if (mounted) {
-      setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Reminder created ✅'),
-          backgroundColor: AppTheme.accentGreen.withOpacity(0.9),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
-      context.pop();
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Reminder created ✅'),
+            backgroundColor: AppTheme.accentGreen.withOpacity(0.9),
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+        context.pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.accentRed),
+        );
+      }
     }
+  }
+
+  Widget _buildToneSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionLabel('Notification Tone'),
+        DropdownButtonFormField<String>(
+          value: _selectedTone,
+          dropdownColor: AppTheme.bgDarkCard,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.music_note_rounded, color: AppTheme.primaryPurple),
+          ),
+          items: ['default', 'soft', 'alarm', 'urgent'].map((t) => DropdownMenuItem(
+            value: t,
+            child: Text(t.toUpperCase(), style: const TextStyle(color: AppTheme.textPrimary)),
+          )).toList(),
+          onChanged: (v) => setState(() => _selectedTone = v!),
+        ),
+      ],
+    );
   }
 
   @override
@@ -291,6 +323,8 @@ class _CreateReminderScreenState extends ConsumerState<CreateReminderScreen>
               sizeFactor: _advancedAnimation,
               child: Column(
                 children: [
+                  const SizedBox(height: 24),
+                  _buildToneSelector(),
                   const SizedBox(height: 12),
                   _AdvancedPanel(
                     repeatInterval: _repeatInterval,

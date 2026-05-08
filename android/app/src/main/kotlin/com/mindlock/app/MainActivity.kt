@@ -297,14 +297,16 @@ class MainActivity : FlutterActivity() {
                         val body = call.argument<String>("body") ?: ""
                         val timeMs = call.argument<Long>("timeMs") ?: 0L
                         val priority = call.argument<Int>("priority") ?: 1
+                        val tone = call.argument<String>("tone") ?: "default"
 
-                        Log.d("MINDLOCK", "Scheduling native alarm for $title at $timeMs")
+                        Log.d("MINDLOCK", "Scheduling native alarm for $title at $timeMs with tone $tone")
                         
                         val intent = Intent(this, ReminderReceiver::class.java).apply {
                             putExtra("id", id)
                             putExtra("title", title)
                             putExtra("body", body)
                             putExtra("priority", priority)
+                            putExtra("tone", tone)
                         }
                         
                         val pendingIntent = PendingIntent.getBroadcast(
