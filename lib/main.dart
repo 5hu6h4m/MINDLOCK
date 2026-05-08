@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/providers/theme_provider.dart';
 import 'data/local/hive_boxes.dart';
 import 'services/notification_service.dart';
 
@@ -13,21 +14,23 @@ void main() async {
   await HiveBoxes.registerAdapters();
   await HiveBoxes.openBoxes();
   await NotificationService.initialize();
-  runApp(const ProviderScope(child: FocusLockApp()));
+  runApp(const ProviderScope(child: MindLockApp()));
 }
 
-class FocusLockApp extends ConsumerWidget {
-  const FocusLockApp({super.key});
+class MindLockApp extends ConsumerWidget {
+  const MindLockApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
+    final themeMode = ref.watch(themeProvider);
+
     return MaterialApp.router(
-      title: 'FocusLock',
+      title: 'MindLock',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.dark,
+      themeMode: themeMode,
       routerConfig: router,
     );
   }

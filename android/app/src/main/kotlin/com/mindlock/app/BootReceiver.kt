@@ -1,4 +1,4 @@
-package com.focuslock.app
+package com.mindlock.app
 
 import android.content.BroadcastReceiver
 import android.content.Context

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">FocusLock</string>
-    <string name="accessibility_service_description">FocusLock uses Accessibility Service to monitor active apps and automatically close entertainment apps when your sleep timer ends. This helps enforce your digital discipline rules.</string>
+    <string name="app_name">MIND LOCK</string>
+    <string name="accessibility_service_description">MindLock uses Accessibility Service to monitor active apps and automatically close entertainment apps when your sleep timer ends. This helps enforce your digital discipline rules.</string>
 </resources>

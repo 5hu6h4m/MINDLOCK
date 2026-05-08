@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 /// Bridge to native Android functionality
 class PlatformChannel {
   static const MethodChannel _channel =
-      MethodChannel('com.focuslock/native');
+      MethodChannel('com.MindLock/native');
 
   static Function(String packageName)? onEscapeAttempt;
 

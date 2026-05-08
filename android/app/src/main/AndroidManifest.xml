@@ -22,7 +22,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
-        android:label="FocusLock"
+        android:label="MindLock"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true"
@@ -60,9 +60,9 @@
 
         <!-- ═══════════════════════════════════════ ACCESSIBILITY SERVICE -->
         <service
-            android:name=".FocusLockAccessibilityService"
+            android:name=".MindLockAccessibilityService"
             android:exported="true"
-            android:label="FocusLock Accessibility"
+            android:label="MindLock Accessibility"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />

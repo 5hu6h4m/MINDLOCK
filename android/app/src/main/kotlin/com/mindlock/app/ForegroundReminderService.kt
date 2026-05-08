@@ -1,4 +1,4 @@
-package com.focuslock.app
+package com.mindlock.app
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -12,7 +12,7 @@ import androidx.core.app.NotificationCompat
 class ForegroundReminderService : Service() {
 
     companion object {
-        const val CHANNEL_ID = "FocusLock_service"
+        const val CHANNEL_ID = "MindLock_service"
         const val NOTIFICATION_ID = 999
     }
 
@@ -44,7 +44,7 @@ class ForegroundReminderService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("FocusLock Active")
+            .setContentTitle("MindLock Active")
             .setContentText("Monitoring your reminders and focus schedule")
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentIntent(openIntent)
@@ -56,7 +56,7 @@ class ForegroundReminderService : Service() {
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "FocusLock Service",
+            "MindLock Service",
             NotificationManager.IMPORTANCE_LOW
         ).apply {
             description = "Running in background to manage reminders"

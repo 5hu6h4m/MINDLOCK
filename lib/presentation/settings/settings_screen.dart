@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/platform_channel.dart';
+import '../../core/providers/theme_provider.dart';
+import '../../core/providers/settings_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -33,6 +35,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = ref.watch(settingsProvider);
+    final themeMode = ref.watch(themeProvider);
+
     return Scaffold(
       backgroundColor: AppTheme.bgDark,
       appBar: AppBar(
@@ -97,18 +102,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               _ToggleSetting(
                 label: 'Sound for reminders',
-                value: true,
-                onChanged: (_) {},
+                value: settings.soundEnabled,
+                onChanged: (val) => ref.read(settingsProvider.notifier).updateSetting('soundEnabled', val),
               ),
               _ToggleSetting(
                 label: 'Vibration',
-                value: true,
-                onChanged: (_) {},
+                value: settings.vibrationEnabled,
+                onChanged: (val) => ref.read(settingsProvider.notifier).updateSetting('vibrationEnabled', val),
               ),
               _ToggleSetting(
                 label: 'Badge count',
-                value: true,
-                onChanged: (_) {},
+                value: settings.badgeEnabled,
+                onChanged: (val) => ref.read(settingsProvider.notifier).updateSetting('badgeEnabled', val),
               ),
             ],
           ),
@@ -122,9 +127,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               _DropdownSetting(
                 label: 'Theme',
-                value: 'Dark',
-                options: const ['Dark', 'Light', 'AMOLED Black'],
-                onChanged: (_) {},
+                value: themeMode.name[0].toUpperCase() + themeMode.name.substring(1),
+                options: const ['Dark', 'Light', 'System'],
+                onChanged: (val) {
+                  if (val != null) {
+                    ref.read(themeProvider.notifier).setTheme(val);
+                  }
+                },
               ),
             ],
           ),
@@ -138,18 +147,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               _ToggleSetting(
                 label: 'Daily discipline score',
-                value: true,
-                onChanged: (_) {},
+                value: settings.disciplineScoreEnabled,
+                onChanged: (val) => ref.read(settingsProvider.notifier).updateSetting('disciplineScoreEnabled', val),
               ),
               _ToggleSetting(
                 label: 'AI smart suggestions',
-                value: true,
-                onChanged: (_) {},
+                value: settings.aiSuggestionsEnabled,
+                onChanged: (val) => ref.read(settingsProvider.notifier).updateSetting('aiSuggestionsEnabled', val),
               ),
               _ToggleSetting(
                 label: 'Streak tracking',
-                value: true,
-                onChanged: (_) {},
+                value: settings.streakTrackingEnabled,
+                onChanged: (val) => ref.read(settingsProvider.notifier).updateSetting('streakTrackingEnabled', val),
               ),
             ],
           ),

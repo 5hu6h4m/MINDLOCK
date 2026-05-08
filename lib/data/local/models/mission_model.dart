@@ -1,5 +1,5 @@
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:focuslock/core/constants/enums.dart';
+import 'package:MindLock/core/constants/enums.dart';
 
 part 'mission_model.g.dart';
 

@@ -1,10 +1,10 @@
-package com.focuslock.app
+package com.mindlock.app
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.view.accessibility.AccessibilityEvent
 
-class FocusLockAccessibilityService : AccessibilityService() {
+class MindLockAccessibilityService : AccessibilityService() {
 
     companion object {
         // Entertainment app packages to monitor
@@ -18,7 +18,7 @@ class FocusLockAccessibilityService : AccessibilityService() {
             "com.twitter.android",
         )
 
-        var instance: FocusLockAccessibilityService? = null
+        var instance: MindLockAccessibilityService? = null
         var isSleepTimerActive = false
         var sleepTimerEndTime = 0L
 
@@ -45,7 +45,7 @@ class FocusLockAccessibilityService : AccessibilityService() {
                 performGlobalAction(GLOBAL_ACTION_HOME)
                 
                 // Send broadcast to MainActivity -> Flutter
-                val intent = Intent("com.focuslock.MISSION_ESCAPE_ATTEMPT")
+                val intent = Intent("com.MindLock.MISSION_ESCAPE_ATTEMPT")
                 intent.putExtra("package", packageName)
                 sendBroadcast(intent)
                 return

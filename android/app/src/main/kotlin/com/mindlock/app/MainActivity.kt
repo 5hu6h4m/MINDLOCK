@@ -1,4 +1,4 @@
-package com.focuslock.app
+package com.mindlock.app
 
 import android.app.admin.DevicePolicyManager
 import android.content.BroadcastReceiver
@@ -16,13 +16,13 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
 
-    private val CHANNEL = "com.focuslock/native"
+    private val CHANNEL = "com.MindLock/native"
 
     private var flutterChannel: MethodChannel? = null
 
     private val missionEscapeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == "com.focuslock.MISSION_ESCAPE_ATTEMPT") {
+            if (intent?.action == "com.MindLock.MISSION_ESCAPE_ATTEMPT") {
                 val pkg = intent.getStringExtra("package") ?: ""
                 flutterChannel?.invokeMethod("onMissionEscapeAttempt", mapOf("package" to pkg))
             }
@@ -69,7 +69,7 @@ class MainActivity : FlutterActivity() {
                         val wakeLock = pm.newWakeLock(
                             android.os.PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
                             android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP,
-                            "FocusLock::WakeLock"
+                            "MindLock::WakeLock"
                         )
                         wakeLock.acquire(10 * 60 * 1000L)
                         result.success(null)
@@ -143,15 +143,15 @@ class MainActivity : FlutterActivity() {
                     "startMission" -> {
                         val blockedApps = call.argument<List<String>>("blockedApps") ?: listOf()
                         val intensity = call.argument<String>("intensity") ?: "medium"
-                        FocusLockAccessibilityService.isMissionActive = true
-                        FocusLockAccessibilityService.missionBlockedPackages = blockedApps.toSet()
-                        FocusLockAccessibilityService.missionIntensity = intensity
+                        MindLockAccessibilityService.isMissionActive = true
+                        MindLockAccessibilityService.missionBlockedPackages = blockedApps.toSet()
+                        MindLockAccessibilityService.missionIntensity = intensity
                         result.success(null)
                     }
 
                     "stopMission" -> {
-                        FocusLockAccessibilityService.isMissionActive = false
-                        FocusLockAccessibilityService.missionBlockedPackages = emptySet()
+                        MindLockAccessibilityService.isMissionActive = false
+                        MindLockAccessibilityService.missionBlockedPackages = emptySet()
                         result.success(null)
                     }
 
@@ -160,10 +160,10 @@ class MainActivity : FlutterActivity() {
             }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(missionEscapeReceiver, IntentFilter("com.focuslock.MISSION_ESCAPE_ATTEMPT"), Context.RECEIVER_NOT_EXPORTED)
+            registerReceiver(missionEscapeReceiver, IntentFilter("com.MindLock.MISSION_ESCAPE_ATTEMPT"), Context.RECEIVER_NOT_EXPORTED)
         } else {
             @Suppress("UnspecifiedRegisterReceiverFlag")
-            registerReceiver(missionEscapeReceiver, IntentFilter("com.focuslock.MISSION_ESCAPE_ATTEMPT"))
+            registerReceiver(missionEscapeReceiver, IntentFilter("com.MindLock.MISSION_ESCAPE_ATTEMPT"))
         }
     }
 
@@ -175,7 +175,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun isAccessibilityServiceEnabled(): Boolean {
-        val service = "$packageName/${FocusLockAccessibilityService::class.java.canonicalName}"
+        val service = "$packageName/${MindLockAccessibilityService::class.java.canonicalName}"
         val enabledServices = Settings.Secure.getString(
             contentResolver,
             Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
