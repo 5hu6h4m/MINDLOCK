@@ -5,6 +5,9 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -72,34 +75,54 @@ class ForegroundReminderService : Service() {
 
     private fun executeSleepKill() {
         try {
-            val audioManager = getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
-            
-            // 1. Brutal Audio Focus Takeover
+            // 1. Brutal Audio Kill
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
             audioManager.requestAudioFocus(null, android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
             
-            // 2. Media Pause Keys
             val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE)
             val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE)
             audioManager.dispatchMediaKeyEvent(eventDown)
             audioManager.dispatchMediaKeyEvent(eventUp)
 
-            // 3. Clear Screen / Go Home
-            MindLockAccessibilityService.instance?.navigateHome()
-            
-            // 4. Force Lock (Safely)
-            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                MainActivity.instance?.lockDevice()
-            }, 800)
+            // 2. Go Home (Simulate clearing recents focus)
+            val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            startActivity(homeIntent)
 
-            updateNotification("Goodnight", "MINDLOCK secured your sleep.")
+            // 3. Force Lock Screen (Direct from Service)
+            val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val adminComponent = ComponentName(this, MindLockAdminReceiver::class.java)
+            
+            if (dpm.isAdminActive(adminComponent)) {
+                // Short delay to ensure Home intent settles
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    try {
+                        dpm.lockNow()
+                        Log.d("MINDLOCK", "Screen locked successfully")
+                    } catch (e: Exception) {
+                        Log.e("MINDLOCK", "Lock failed: ${e.message}")
+                    }
+                }, 500)
+            } else {
+                Log.w("MINDLOCK", "Admin not active. Launching MainActivity to request.")
+                val mainIntent = Intent(this, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    putExtra("request_admin", true)
+                }
+                startActivity(mainIntent)
+            }
+
+            updateNotification("Sleep Secured", "Phone locked. Goodnight.")
         } catch (e: Exception) {
-            Log.e("MINDLOCK", "Sleep kill execution failed: ${e.message}")
+            Log.e("MINDLOCK", "Brutal Sleep Kill failed: ${e.message}")
         }
     }
 
     private fun updateNotification(title: String, text: String) {
         try {
-            val nm = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as NotificationManager
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             nm.notify(NOTIFICATION_ID, buildNotification(title, text))
         } catch (e: Exception) {}
     }

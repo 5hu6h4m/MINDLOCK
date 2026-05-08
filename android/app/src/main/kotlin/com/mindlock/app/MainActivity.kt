@@ -74,6 +74,17 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun handleIntent(intent: Intent) {
+        if (intent.getBooleanExtra("request_admin", false)) {
+            val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val adminComponent = ComponentName(this, MindLockAdminReceiver::class.java)
+            if (!dpm.isAdminActive(adminComponent)) {
+                val adminIntent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                    putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
+                    putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "MindLock needs this to lock your screen during sleep sessions.")
+                }
+                startActivity(adminIntent)
+            }
+        }
         val route = intent.getStringExtra("route")
         if (route == "/alarm") {
             val id = intent.getIntExtra("reminder_id", 0)
