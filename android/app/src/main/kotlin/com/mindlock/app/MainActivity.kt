@@ -208,6 +208,37 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     }
 
+                    "startSleepTimer" -> {
+                        val minutes = call.argument<Int>("minutes") ?: 0
+                        val intent = Intent(this, ForegroundReminderService::class.java).apply {
+                            action = "START_SLEEP_TIMER"
+                            putExtra("minutes", minutes)
+                        }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            startForegroundService(intent)
+                        } else {
+                            startService(intent)
+                        }
+                        result.success(true)
+                    }
+
+                    "stopSleepTimer" -> {
+                        val intent = Intent(this, ForegroundReminderService::class.java).apply {
+                            action = "STOP_SLEEP_TIMER"
+                        }
+                        startService(intent)
+                        result.success(true)
+                    }
+
+                    "getRemainingSleepTime" -> {
+                        if (ForegroundReminderService.isSleepTimerActive) {
+                            val remainingMs = ForegroundReminderService.sleepTimerEndTime - System.currentTimeMillis()
+                            result.success(remainingMs / 1000)
+                        } else {
+                            result.success(0L)
+                        }
+                    }
+
                     "isDNDPermissionGranted" -> {
                         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

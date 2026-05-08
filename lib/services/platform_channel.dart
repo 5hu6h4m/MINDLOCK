@@ -213,6 +213,26 @@ class PlatformChannel {
     }
   }
 
+  static Future<void> startSleepTimer(int minutes) async {
+    try {
+      await _channel.invokeMethod('startSleepTimer', {'minutes': minutes});
+    } catch (_) {}
+  }
+
+  static Future<void> stopSleepTimer() async {
+    try {
+      await _channel.invokeMethod('stopSleepTimer');
+    } catch (_) {}
+  }
+
+  static Future<int> getRemainingSleepTime() async {
+    try {
+      return await _channel.invokeMethod<int>('getRemainingSleepTime') ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   /// Check if DND access is granted
   static Future<bool> isDNDPermissionGranted() async {
     try {

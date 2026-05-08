@@ -12,9 +12,9 @@ class SleepScreen extends ConsumerStatefulWidget {
 
 class _SleepScreenState extends ConsumerState<SleepScreen> with TickerProviderStateMixin {
   int _selectedMinutes = 30;
-  int _remainingSeconds = 30 * 60;
+  int _remainingSeconds = 0;
   bool _isActive = false;
-  Timer? _timer;
+  Timer? _refreshTimer;
   late AnimationController _pulseController;
 
   final _presets = [5, 15, 30, 45, 60, 90];
@@ -26,58 +26,60 @@ class _SleepScreenState extends ConsumerState<SleepScreen> with TickerProviderSt
       vsync: this,
       duration: const Duration(milliseconds: 4000),
     )..repeat(reverse: true);
+    
+    _checkExistingTimer();
+  }
+
+  Future<void> _checkExistingTimer() async {
+    final remaining = await PlatformChannel.getRemainingSleepTime();
+    if (remaining > 0) {
+      setState(() {
+        _isActive = true;
+        _remainingSeconds = remaining;
+      });
+      _startRefreshTimer();
+    }
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _refreshTimer?.cancel();
     _pulseController.dispose();
     super.dispose();
   }
 
-  void _start() {
+  void _startRefreshTimer() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      final remaining = await PlatformChannel.getRemainingSleepTime();
+      if (remaining <= 0) {
+        _stopLocal();
+      } else {
+        setState(() => _remainingSeconds = remaining);
+      }
+    });
+  }
+
+  void _stopLocal() {
+    _refreshTimer?.cancel();
+    setState(() {
+      _isActive = false;
+      _remainingSeconds = 0;
+    });
+  }
+
+  Future<void> _start() async {
+    await PlatformChannel.startSleepTimer(_selectedMinutes);
     setState(() {
       _isActive = true;
       _remainingSeconds = _selectedMinutes * 60;
     });
-
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (_remainingSeconds <= 0) {
-        _onTimerEnd();
-        return;
-      }
-      setState(() => _remainingSeconds--);
-    });
+    _startRefreshTimer();
   }
 
-  Future<void> _onTimerEnd() async {
-    _timer?.cancel();
-    setState(() {
-      _isActive = false;
-      _remainingSeconds = _selectedMinutes * 60;
-    });
-
-    // Aggressive Kill: Stop media and go to Home
-    // DND is NOT used as per user request to allow calls.
-    await PlatformChannel.pauseMedia();
-    await PlatformChannel.goHome();
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sleep Timer Ended: Media Stopped 🛌'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
-  void _stop() {
-    _timer?.cancel();
-    setState(() {
-      _isActive = false;
-      _remainingSeconds = _selectedMinutes * 60;
-    });
+  Future<void> _stop() async {
+    await PlatformChannel.stopSleepTimer();
+    _stopLocal();
   }
 
   String get _timeDisplay {
@@ -151,7 +153,7 @@ class _SleepScreenState extends ConsumerState<SleepScreen> with TickerProviderSt
                           ),
                         ),
                         const Text(
-                          'UNTIL SLEEP',
+                          'REMAINING',
                           style: TextStyle(
                             color: AppTheme.primaryPurple,
                             fontSize: 10,
@@ -164,13 +166,13 @@ class _SleepScreenState extends ConsumerState<SleepScreen> with TickerProviderSt
                   ),
                   const SizedBox(height: 40),
                   const Text(
-                    'Enjoy your media.\nApps will close when time is up.',
+                    'Background timer is active.\nMedia will stop even if you close the app.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white38, fontSize: 14, height: 1.6),
+                    style: TextStyle(color: Colors.white38, fontSize: 13, height: 1.6),
                   ),
                 ] else ...[
                   const Text(
-                    'Media Sleep Timer',
+                    'Background Sleep Timer',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 32,
@@ -179,7 +181,7 @@ class _SleepScreenState extends ConsumerState<SleepScreen> with TickerProviderSt
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'Auto-stop apps and music when you sleep.',
+                    'Timer runs in the background. Good for YouTube/Insta.',
                     style: TextStyle(color: Colors.white54, fontSize: 14),
                   ),
                   const SizedBox(height: 60),
@@ -196,7 +198,6 @@ class _SleepScreenState extends ConsumerState<SleepScreen> with TickerProviderSt
                         return GestureDetector(
                           onTap: () => setState(() {
                             _selectedMinutes = m;
-                            _remainingSeconds = m * 60;
                           }),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 300),

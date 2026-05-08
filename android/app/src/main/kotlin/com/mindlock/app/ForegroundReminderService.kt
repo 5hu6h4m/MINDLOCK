@@ -14,6 +14,9 @@ class ForegroundReminderService : Service() {
     companion object {
         const val CHANNEL_ID = "MindLock_service"
         const val NOTIFICATION_ID = 999
+        
+        var sleepTimerEndTime = 0L
+        var isSleepTimerActive = false
     }
 
     override fun onCreate() {
@@ -23,16 +26,70 @@ class ForegroundReminderService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        return START_STICKY // Restart if killed
+        val action = intent?.action
+        if (action == "START_SLEEP_TIMER") {
+            val minutes = intent.getIntExtra("minutes", 0)
+            sleepTimerEndTime = System.currentTimeMillis() + (minutes * 60 * 1000)
+            isSleepTimerActive = true
+            startTimerCheck()
+        } else if (action == "STOP_SLEEP_TIMER") {
+            isSleepTimerActive = false
+        }
+        return START_STICKY
+    }
+
+    private fun startTimerCheck() {
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        val runnable = object : Runnable {
+            override fun run() {
+                if (!isSleepTimerActive) return
+                
+                val now = System.currentTimeMillis()
+                if (now >= sleepTimerEndTime) {
+                    executeSleepKill()
+                    isSleepTimerActive = false
+                    return
+                }
+                
+                val remainingMs = sleepTimerEndTime - now
+                val minutes = (remainingMs / 1000) / 60
+                val seconds = (remainingMs / 1000) % 60
+                val timeStr = String.format("%02d:%02d", minutes, seconds)
+                
+                updateNotification("Sleep Timer Active", "Media will stop in $timeStr")
+                handler.postDelayed(this, 1000)
+            }
+        }
+        handler.post(runnable)
+    }
+
+    private fun executeSleepKill() {
+        try {
+            val audioManager = getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+            
+            // Gain focus to pause others
+            audioManager.requestAudioFocus(null, android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            
+            val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE)
+            val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE)
+            audioManager.dispatchMediaKeyEvent(eventDown)
+            audioManager.dispatchMediaKeyEvent(eventUp)
+
+            MindLockAccessibilityService.instance?.navigateHome()
+            updateNotification("Sleep Timer Ended", "All media stopped.")
+        } catch (e: Exception) {
+            android.util.Log.e("MINDLOCK", "Sleep kill failed: ${e.message}")
+        }
+    }
+
+    private fun updateNotification(title: String, text: String) {
+        val nm = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(NOTIFICATION_ID, buildNotification(title, text))
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    override fun onDestroy() {
-        super.onDestroy()
-    }
-
-    private fun buildNotification(): Notification {
+    private fun buildNotification(title: String = "MindLock", text: String = "Engine Active"): Notification {
         val openIntent = PendingIntent.getActivity(
             this,
             0,
@@ -41,8 +98,8 @@ class ForegroundReminderService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("MindLock")
-            .setContentText("Core Engine Running")
+            .setContentTitle(title)
+            .setContentText(text)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentIntent(openIntent)
             .setOngoing(true)
@@ -56,13 +113,11 @@ class ForegroundReminderService : Service() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "MindLock Core System",
+                "MindLock System",
                 NotificationManager.IMPORTANCE_MIN
             ).apply {
-                description = "Background synchronization"
+                description = "Background core service"
                 setShowBadge(false)
-                enableLights(false)
-                enableVibration(false)
             }
             val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             nm.createNotificationChannel(channel)
