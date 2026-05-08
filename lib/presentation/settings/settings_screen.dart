@@ -6,6 +6,9 @@ import '../../core/providers/theme_provider.dart';
 import '../../core/providers/settings_provider.dart';
 import '../../services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 import 'legal_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -312,6 +315,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         content: Text('You are on the latest version!'),
                         backgroundColor: AppTheme.accentGreen,
                       ),
+                    );
+                  }
+                },
+              ),
+              _NavSetting(
+                label: 'Share App with Friends',
+                onTap: () async {
+                  try {
+                    final apkPath = await PlatformChannel.getAppApkPath();
+                    if (apkPath != null) {
+                      final tempDir = await getTemporaryDirectory();
+                      final shareFile = File('${tempDir.path}/MINDLOCK.apk');
+                      
+                      // Copy the base.apk to MINDLOCK.apk in temp directory
+                      await File(apkPath).copy(shareFile.path);
+
+                      await Share.shareXFiles(
+                        [XFile(shareFile.path)],
+                        text: 'Hey! Check out MINDLOCK - The ultimate digital discipline app. Download it here: https://github.com/5hu6h4m/MINDLOCK',
+                        subject: 'MINDLOCK App Share',
+                      );
+                    } else {
+                      // Fallback to link only
+                      await Share.share('Hey! Check out MINDLOCK - The ultimate digital discipline app. Download it here: https://github.com/5hu6h4m/MINDLOCK');
+                    }
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Share failed: $e'), backgroundColor: AppTheme.accentRed),
                     );
                   }
                 },

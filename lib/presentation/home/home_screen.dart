@@ -11,7 +11,9 @@ import '../../data/local/models/suggestion_model.dart';
 import '../../services/ai_suggestion_service.dart';
 import '../../services/discipline_service.dart';
 import '../../services/streak_service.dart';
+import '../../services/platform_channel.dart';
 import '../../core/providers/settings_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -35,6 +37,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     )..forward();
+    _checkPermissions();
+  }
+
+  bool _showPermissionBanner = false;
+
+  Future<void> _checkPermissions() async {
+    // Check for Exact Alarm permission on Android 12+
+    if (await Permission.scheduleExactAlarm.isDenied) {
+      setState(() => _showPermissionBanner = true);
+    }
   }
 
   @override
@@ -79,6 +91,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ),
               ),
 
+              // ── Permission Banner ─────────────────────────────────────────
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  child: _PermissionBanner(),
+                ),
+              ),
+
               // ── Emergency Banner ─────────────────────────────────────────
               if (emergencyReminders.isNotEmpty)
                 SliverToBoxAdapter(
@@ -88,7 +108,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
                 ),
 
-              // ── Stats Row ─────────────────────────────────────────────────
+              // ── Discipline Meter ─────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -96,10 +116,80 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     builder: (context, ref, child) {
                       final discipline = ref.watch(disciplineServiceProvider);
                       final score = discipline.calculateDailyScore(DateTime.now());
-                      return _StatsRow(
-                        disciplineScore: (score * 100).toInt(),
-                        pending: pendingReminders.length,
-                        completed: completedToday,
+                      final pct = (score * 100).toInt();
+                      final label = discipline.getDisciplineLabel(score);
+                      
+                      return Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppTheme.primaryPurple.withOpacity(0.2),
+                              AppTheme.accentBlue.withOpacity(0.1),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: AppTheme.primaryPurple.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 80,
+                                  height: 80,
+                                  child: CircularProgressIndicator(
+                                    value: score,
+                                    strokeWidth: 8,
+                                    backgroundColor: AppTheme.bgDarkElevated,
+                                    valueColor: AlwaysStoppedAnimation(
+                                      pct >= 80 ? AppTheme.accentGreen : AppTheme.primaryPurple
+                                    ),
+                                    strokeCap: StrokeCap.round,
+                                  ),
+                                ),
+                                Text('$pct%', 
+                                  style: const TextStyle(
+                                    color: AppTheme.textPrimary,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800
+                                  )
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('DAILY DISCIPLINE',
+                                    style: TextStyle(
+                                      color: AppTheme.primaryPurple,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.5
+                                    )
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(label,
+                                    style: const TextStyle(
+                                      color: AppTheme.textPrimary,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w700
+                                    )
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text('Stay consistent to reach 100%',
+                                    style: TextStyle(color: AppTheme.textMuted, fontSize: 12)
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       );
                     },
                   ),
@@ -108,6 +198,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
               // ── AI Suggestion ──────────────────────────────────────────────
               _AISuggestionSliver(),
+
+              // ── Permission Check ─────────────────────────────────────────────
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: _PermissionBanner(),
+                ),
+              ),
 
               // ── Today's Tasks ─────────────────────────────────────────────
               SliverToBoxAdapter(
@@ -251,6 +349,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   style: const TextStyle(
                     color: AppTheme.textMuted,
                     fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final now = DateTime.now();
+                    await PlatformChannel.scheduleNativeReminder(
+                      id: 888,
+                      title: '🚀 QUICK TEST',
+                      body: 'Native Alarm is working! 🦾',
+                      timeMs: now.add(const Duration(seconds: 10)).millisecondsSinceEpoch,
+                      priority: 3,
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Test set for 10s... LOCK PHONE!'),
+                        backgroundColor: AppTheme.primaryPurple,
+                      )
+                    );
+                  },
+                  icon: const Icon(Icons.bolt_rounded, size: 16),
+                  label: const Text('TEST ALARM (10s)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryPurple,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ],
@@ -860,6 +984,131 @@ class _PremiumFAB extends StatelessWidget {
           ],
         ),
         child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+      ),
+    );
+  }
+}
+
+class _PermissionBanner extends StatefulWidget {
+  const _PermissionBanner();
+
+  @override
+  State<_PermissionBanner> createState() => _PermissionBannerState();
+}
+
+class _PermissionBannerState extends State<_PermissionBanner> {
+  bool _hasExactAlarm = true;
+  bool _isChecking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPermissions();
+  }
+
+  Future<void> _checkPermissions() async {
+    if (_isChecking) return;
+    _isChecking = true;
+    
+    final exact = await PlatformChannel.checkExactAlarmPermission();
+    
+    if (mounted) {
+      setState(() {
+        _hasExactAlarm = exact;
+        _isChecking = false;
+      });
+    }
+  }
+
+  Future<void> _testAlarm() async {
+    final now = DateTime.now();
+    await PlatformChannel.scheduleNativeReminder(
+      id: 999,
+      title: '🔥 MINDLOCK TEST',
+      body: 'If you see this, your reminders are WORKING! 🦾',
+      timeMs: now.add(const Duration(seconds: 10)).millisecondsSinceEpoch,
+      priority: 3,
+    );
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Test alarm set for 10 seconds... LOCK PHONE NOW!'),
+          backgroundColor: AppTheme.primaryPurple,
+          behavior: SnackBarBehavior.floating,
+        )
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_hasExactAlarm) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: AppTheme.accentAmber.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.accentAmber.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.security_rounded, color: AppTheme.accentAmber),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'PERMISSIONS REQUIRED',
+                      style: TextStyle(
+                        color: AppTheme.accentAmber,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 10,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    Text(
+                      'Allow Alarms & Reminders for Android 16 to ring.',
+                      style: TextStyle(color: AppTheme.textPrimary, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: () async {
+                  await PlatformChannel.openExactAlarmSettings();
+                  await Future.delayed(const Duration(seconds: 3));
+                  _checkPermissions();
+                },
+                child: const Text('FIX', style: TextStyle(color: AppTheme.accentAmber, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          const Divider(color: AppTheme.borderColor),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              const Text('Test if it works:', style: TextStyle(color: AppTheme.textMuted, fontSize: 11)),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: _testAlarm,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.bgDarkElevated,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(60, 30),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('TEST ALARM (10s)', style: TextStyle(fontSize: 11)),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

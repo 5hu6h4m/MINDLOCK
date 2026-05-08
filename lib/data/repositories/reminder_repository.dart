@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../local/hive_boxes.dart';
 import '../local/models/reminder_model.dart';
+import '../../services/alarm_service.dart';
 
 final reminderRepositoryProvider = Provider<ReminderRepository>((ref) {
   return ReminderRepository();
@@ -45,15 +47,26 @@ class ReminderRepository {
       createdAt: DateTime.now(),
     );
     await _box.put(reminder.id, reminder);
+    
+    // Schedule alarm (Ensure it's done)
+    try {
+      await AlarmService.scheduleReminder(reminder);
+      debugPrint('MINDLOCK: Real Alarm scheduled for ${reminder.title}');
+    } catch (e) {
+      debugPrint('MINDLOCK: Real Alarm scheduling failed: $e');
+    }
+    
     return reminder;
   }
 
   Future<void> updateReminder(ReminderModel reminder) async {
     await _box.put(reminder.id, reminder);
+    await AlarmService.scheduleReminder(reminder);
   }
 
   Future<void> deleteReminder(String id) async {
     await _box.delete(id);
+    await AlarmService.cancelReminder(id);
   }
 
   Future<void> markCompleted(String id) async {
@@ -158,6 +171,13 @@ class ReminderRepository {
     if (total == 0) return 0;
     return totalCompleted / total;
   }
+
+  // Added for Badge Logic
+  List<ReminderModel> getCompletedAfter(int hour) {
+    return _box.values.where((r) => r.isCompleted && r.dateTime.hour >= hour).toList();
+  }
+
+  int get totalMissionsCompleted => _box.values.where((r) => r.isCompleted && r.title.toLowerCase().contains('mission')).length;
 
   Map<int, List<int>> getWeeklyStats() {
     final now = DateTime.now();

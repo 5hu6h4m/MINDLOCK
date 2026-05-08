@@ -371,6 +371,14 @@ class _StreaksBadges extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final repo = ProviderScope.containerOf(context).read(reminderRepositoryProvider);
+    final completed = repo.totalCompleted;
+    
+    // Logic for unlocking badges
+    final isNightWarrior = repo.getCompletedAfter(20).length >= 3;
+    final isTaskWarrior = completed >= 10;
+    final isFocusMaster = repo.totalMissionsCompleted >= 3;
+    
     return Column(
       children: [
         Row(
@@ -390,33 +398,52 @@ class _StreaksBadges extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         Row(
-          children: _badges.map((b) {
-        return Expanded(
-          child: Container(
-            margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: b.color.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: b.color.withOpacity(0.2)),
-            ),
-            child: Column(
-              children: [
-                Text(b.emoji, style: const TextStyle(fontSize: 26)),
-                const SizedBox(height: 4),
-                Text(b.label,
-                    style: TextStyle(
-                        color: b.color,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600),
-                    textAlign: TextAlign.center),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
+          children: [
+            _BadgeTile(emoji: '🌙', label: 'Night\nDiscipline', color: AppTheme.accentBlue, unlocked: isNightWarrior),
+            _BadgeTile(emoji: '⚔️', label: 'Task\nWarrior', color: AppTheme.primaryPurple, unlocked: isTaskWarrior),
+            _BadgeTile(emoji: '🎯', label: 'Focus\nMaster', color: AppTheme.accentCyan, unlocked: isFocusMaster),
+            _BadgeTile(emoji: '📵', label: 'No-Reels\nChamp', color: AppTheme.accentGreen, unlocked: false), // Usage logic added later
+          ],
         ),
       ],
+    );
+  }
+}
+
+class _BadgeTile extends StatelessWidget {
+  final String emoji, label;
+  final Color color;
+  final bool unlocked;
+
+  const _BadgeTile({required this.emoji, required this.label, required this.color, required this.unlocked});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: unlocked ? color.withOpacity(0.12) : AppTheme.bgDarkElevated.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: unlocked ? color.withOpacity(0.3) : AppTheme.borderColor),
+        ),
+        child: Column(
+          children: [
+            ColorFiltered(
+              colorFilter: unlocked ? const ColorFilter.mode(Colors.transparent, BlendMode.dst) : const ColorFilter.mode(Colors.grey, BlendMode.saturation),
+              child: Text(emoji, style: const TextStyle(fontSize: 26)),
+            ),
+            const SizedBox(height: 4),
+            Text(label,
+                style: TextStyle(
+                    color: unlocked ? color : AppTheme.textMuted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600),
+                textAlign: TextAlign.center),
+          ],
+        ),
+      ),
     );
   }
 }

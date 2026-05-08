@@ -10,9 +10,12 @@ import android.media.AudioManager
 import android.os.Build
 import android.provider.Settings
 import android.view.KeyEvent
+import android.app.AlarmManager
+import android.app.PendingIntent
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import android.util.Log
 
 class MainActivity : FlutterActivity() {
 
@@ -26,6 +29,30 @@ class MainActivity : FlutterActivity() {
                 val pkg = intent.getStringExtra("package") ?: ""
                 flutterChannel?.invokeMethod("onMissionEscapeAttempt", mapOf("package" to pkg))
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent) {
+        val route = intent.getStringExtra("route")
+        if (route == "/alarm") {
+            val id = intent.getIntExtra("reminder_id", 0)
+            val title = intent.getStringExtra("title") ?: ""
+            val body = intent.getStringExtra("body") ?: ""
+            val priority = intent.getIntExtra("priority", 1)
+            
+            val data = mapOf(
+                "id" to id,
+                "title" to title,
+                "body" to body,
+                "priority" to priority
+            )
+            flutterChannel?.invokeMethod("onNativeAlarm", data)
         }
     }
 
@@ -217,6 +244,99 @@ class MainActivity : FlutterActivity() {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
                         startActivity(intent)
+                        result.success(true)
+                    }
+
+                    "getAppApkPath" -> {
+                        result.success(applicationContext.packageCodePath)
+                    }
+
+                    "getUsageStats" -> {
+                        val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
+                        val endTime = System.currentTimeMillis()
+                        val startTime = endTime - 24 * 60 * 60 * 1000 // Last 24 hours
+                        
+                        val stats = usageStatsManager.queryUsageStats(android.app.usage.UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
+                        val usageMap = mutableMapOf<String, Int>()
+                        
+                        if (stats != null) {
+                            for (usageStat in stats) {
+                                val totalTimeInForeground = usageStat.totalTimeInForeground
+                                if (totalTimeInForeground > 0) {
+                                    val packageName = usageStat.packageName
+                                    val minutes = (totalTimeInForeground / (1000 * 60)).toInt()
+                                    if (minutes > 0) {
+                                        usageMap[packageName] = usageMap.getOrDefault(packageName, 0) + minutes
+                                    }
+                                }
+                            }
+                        }
+                        result.success(usageMap)
+                    }
+
+                    "checkExactAlarmPermission" -> {
+                        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            result.success(alarmManager.canScheduleExactAlarms())
+                        } else {
+                            result.success(true)
+                        }
+                    }
+
+                    "openExactAlarmSettings" -> {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                            startActivity(intent)
+                        }
+                        result.success(null)
+                    }
+
+                    "scheduleNativeReminder" -> {
+                        val id = call.argument<Int>("id") ?: 0
+                        val title = call.argument<String>("title") ?: ""
+                        val body = call.argument<String>("body") ?: ""
+                        val timeMs = call.argument<Long>("timeMs") ?: 0L
+                        val priority = call.argument<Int>("priority") ?: 1
+
+                        Log.d("MINDLOCK", "Scheduling native alarm for $title at $timeMs")
+                        
+                        val intent = Intent(this, ReminderReceiver::class.java).apply {
+                            putExtra("id", id)
+                            putExtra("title", title)
+                            putExtra("body", body)
+                            putExtra("priority", priority)
+                        }
+                        
+                        val pendingIntent = PendingIntent.getBroadcast(
+                            this, id, intent, 
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                        )
+                        
+                        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                        
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            if (alarmManager.canScheduleExactAlarms()) {
+                                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeMs, pendingIntent)
+                                android.widget.Toast.makeText(this, "Reminder Scheduled: $title", android.widget.Toast.LENGTH_SHORT).show()
+                            } else {
+                                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeMs, pendingIntent)
+                                android.widget.Toast.makeText(this, "Reminder Set (Inexact): $title", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeMs, pendingIntent)
+                            android.widget.Toast.makeText(this, "Reminder Set: $title", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                        result.success(true)
+                    }
+
+                    "cancelNativeReminder" -> {
+                        val id = call.argument<Int>("id") ?: 0
+                        val intent = Intent(this, ReminderReceiver::class.java)
+                        val pendingIntent = PendingIntent.getBroadcast(
+                            this, id, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                        )
+                        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                        alarmManager.cancel(pendingIntent)
                         result.success(true)
                     }
 

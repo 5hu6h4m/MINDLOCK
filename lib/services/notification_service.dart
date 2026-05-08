@@ -1,5 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _plugin =
@@ -98,14 +100,11 @@ class NotificationService {
             ? 'MindLock_high'
             : 'MindLock_normal';
 
-    final importance = priorityIndex >= 2 ? Importance.max : Importance.high;
-    final priority = priorityIndex >= 2 ? Priority.max : Priority.high;
-
     final androidDetails = AndroidNotificationDetails(
       channelId,
       priorityIndex == 3 ? 'Emergency Reminders' : 'Reminders',
-      importance: importance,
-      priority: priority,
+      importance: Importance.max,
+      priority: Priority.max,
       fullScreenIntent: priorityIndex >= 2,
       category: AndroidNotificationCategory.alarm,
       actions: const [
@@ -125,6 +124,51 @@ class NotificationService {
       title: title,
       body: body,
       notificationDetails: NotificationDetails(android: androidDetails),
+      payload: payload,
+    );
+  }
+
+  static Future<void> scheduleNotification({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime scheduledDate,
+    required int priorityIndex,
+    String? payload,
+  }) async {
+    final channelId = priorityIndex == 3
+        ? 'MindLock_emergency'
+        : priorityIndex >= 2
+            ? 'MindLock_high'
+            : 'MindLock_normal';
+
+    final androidDetails = AndroidNotificationDetails(
+      channelId,
+      priorityIndex == 3 ? 'Emergency Reminders' : 'Reminders',
+      importance: Importance.max,
+      priority: Priority.max,
+      fullScreenIntent: priorityIndex >= 2,
+      category: AndroidNotificationCategory.alarm,
+      actions: const [
+        AndroidNotificationAction('done', '✅ Done'),
+        AndroidNotificationAction('snooze', '⏰ Snooze 10min'),
+        AndroidNotificationAction('ignore', '❌ Ignore'),
+      ],
+      styleInformation: BigTextStyleInformation(body),
+      color: const Color(0xFF7C5CFC),
+      enableLights: true,
+      enableVibration: true,
+      playSound: true,
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+    );
+
+    await _plugin.zonedSchedule(
+      id: id,
+      title: title,
+      body: body,
+      scheduledDate: tz.TZDateTime.from(scheduledDate, tz.local),
+      notificationDetails: NotificationDetails(android: androidDetails),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       payload: payload,
     );
   }

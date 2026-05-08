@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 
 /// Bridge to native Android functionality
 class PlatformChannel {
@@ -6,6 +7,7 @@ class PlatformChannel {
       MethodChannel('com.MindLock/native');
 
   static Function(String packageName)? onEscapeAttempt;
+  static Function(Map<String, dynamic> data)? onNativeAlarm;
 
   static void initializeListener() {
     _channel.setMethodCallHandler((call) async {
@@ -13,6 +15,11 @@ class PlatformChannel {
         final pkg = call.arguments['package'] as String?;
         if (pkg != null && onEscapeAttempt != null) {
           onEscapeAttempt!(pkg);
+        }
+      } else if (call.method == 'onNativeAlarm') {
+        final data = Map<String, dynamic>.from(call.arguments);
+        if (onNativeAlarm != null) {
+          onNativeAlarm!(data);
         }
       }
     });
@@ -59,12 +66,41 @@ class PlatformChannel {
 
   /// Get app usage stats in minutes for today
   static Future<Map<String, int>> getUsageStats() async {
+    final Map<dynamic, dynamic>? stats =
+        await _channel.invokeMethod('getUsageStats');
+    return stats?.map((key, value) => MapEntry(key.toString(), value as int)) ??
+        {};
+  }
+
+  static Future<bool> scheduleNativeReminder({
+    required int id,
+    required String title,
+    required String body,
+    required int timeMs,
+    required int priority,
+  }) async {
     try {
-      final result =
-          await _channel.invokeMapMethod<String, int>('getUsageStats');
-      return result ?? {};
-    } catch (_) {
-      return {};
+      final bool result = await _channel.invokeMethod('scheduleNativeReminder', {
+        'id': id,
+        'title': title,
+        'body': body,
+        'timeMs': timeMs,
+        'priority': priority,
+      });
+      return result;
+    } catch (e) {
+      debugPrint('Native schedule error: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> cancelNativeReminder(int id) async {
+    try {
+      final bool result = await _channel.invokeMethod('cancelNativeReminder', {'id': id});
+      return result;
+    } catch (e) {
+      debugPrint('Native cancel error: $e');
+      return false;
     }
   }
 
@@ -104,6 +140,22 @@ class PlatformChannel {
   static Future<void> openOverlaySettings() async {
     try {
       await _channel.invokeMethod('openOverlaySettings');
+    } catch (_) {}
+  }
+
+  /// Check if exact alarm permission is granted (Android 12+)
+  static Future<bool> checkExactAlarmPermission() async {
+    try {
+      return await _channel.invokeMethod<bool>('checkExactAlarmPermission') ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  /// Open exact alarm permission settings
+  static Future<void> openExactAlarmSettings() async {
+    try {
+      await _channel.invokeMethod('openExactAlarmSettings');
     } catch (_) {}
   }
 
@@ -171,5 +223,14 @@ class PlatformChannel {
         'subject': subject,
       });
     } catch (_) {}
+  }
+
+  /// Get the APK file path of the current app
+  static Future<String?> getAppApkPath() async {
+    try {
+      return await _channel.invokeMethod<String>('getAppApkPath');
+    } catch (_) {
+      return null;
+    }
   }
 }

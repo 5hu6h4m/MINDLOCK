@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../presentation/home/home_screen.dart';
 import '../../presentation/reminders/reminders_screen.dart';
 import '../../presentation/reminders/create_reminder_screen.dart';
+import '../../presentation/reminders/alarm_screen.dart';
 import '../../presentation/focus/focus_screen.dart';
 import '../../presentation/sleep/sleep_screen.dart';
 import '../../presentation/analytics/analytics_screen.dart';
@@ -46,6 +47,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   final extra = state.extra as Map<String, dynamic>?;
                   return CreateReminderScreen(editData: extra);
                 },
+              ),
+              GoRoute(
+                path: 'alarm',
+                builder: (context, state) => AlarmScreen(
+                  data: state.extra as Map<String, dynamic>? ?? {},
+                ),
               ),
             ],
           ),
