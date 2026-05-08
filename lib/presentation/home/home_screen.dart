@@ -7,6 +7,11 @@ import '../../core/theme/app_theme.dart';
 import '../../core/constants/enums.dart';
 import '../../data/repositories/reminder_repository.dart';
 import '../../data/local/models/reminder_model.dart';
+import '../../data/local/models/suggestion_model.dart';
+import '../../services/ai_suggestion_service.dart';
+import '../../services/discipline_service.dart';
+import '../../services/streak_service.dart';
+import '../../core/providers/settings_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -87,13 +92,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                  child: _StatsRow(
-                    totalToday: todayReminders.length,
-                    pending: pendingReminders.length,
-                    completed: completedToday,
+                  child: Consumer(
+                    builder: (context, ref, child) {
+                      final discipline = ref.watch(disciplineServiceProvider);
+                      final score = discipline.calculateDailyScore(DateTime.now());
+                      return _StatsRow(
+                        disciplineScore: (score * 100).toInt(),
+                        pending: pendingReminders.length,
+                        completed: completedToday,
+                      );
+                    },
                   ),
                 ),
               ),
+
+              // ── AI Suggestion ──────────────────────────────────────────────
+              _AISuggestionSliver(),
 
               // ── Today's Tasks ─────────────────────────────────────────────
               SliverToBoxAdapter(
@@ -189,14 +203,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'MindLock',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.5,
-                  ),
+                Row(
+                  children: [
+                    const Text(
+                      'MINDLOCK',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final stats = ref.watch(userStatsProvider);
+                        if (stats.currentStreak == 0) return const SizedBox();
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.accentAmber.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppTheme.accentAmber.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.local_fire_department_rounded, 
+                                  color: AppTheme.accentAmber, size: 14),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${stats.currentStreak}',
+                                style: const TextStyle(
+                                  color: AppTheme.accentAmber,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
                 Text(
                   DateFormat('EEEE, d MMMM').format(DateTime.now()),
@@ -327,9 +375,9 @@ class _EmergencyBannerState extends State<_EmergencyBanner>
 // Stats Row
 // ──────────────────────────────────────────────────────────────────────────────
 class _StatsRow extends StatelessWidget {
-  final int totalToday, pending, completed;
+  final int disciplineScore, pending, completed;
   const _StatsRow(
-      {required this.totalToday,
+      {required this.disciplineScore,
       required this.pending,
       required this.completed});
 
@@ -337,7 +385,7 @@ class _StatsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _StatChip(value: totalToday.toString(), label: "Today", color: AppTheme.accentCyan),
+        _StatChip(value: "$disciplineScore%", label: "Discipline", color: AppTheme.primaryPurple),
         const SizedBox(width: 12),
         _StatChip(value: pending.toString(), label: "Pending", color: AppTheme.accentAmber),
         const SizedBox(width: 12),
@@ -642,6 +690,143 @@ class _EmptyState extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// AI Suggestion Sliver
+// ──────────────────────────────────────────────────────────────────────────────
+class _AISuggestionSliver extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    if (!settings.aiSuggestionsEnabled) return const SliverToBoxAdapter(child: SizedBox());
+
+    final aiService = ref.watch(aiSuggestionServiceProvider);
+    final suggestion = aiService.getContextualSuggestion();
+
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: suggestion.color.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: suggestion.color.withOpacity(0.2)),
+            boxShadow: [
+              BoxShadow(
+                color: suggestion.color.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: suggestion.color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(suggestion.icon, color: suggestion.color, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'SMART SUGGESTION',
+                          style: TextStyle(
+                            color: suggestion.color,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const Spacer(),
+                        const Text(
+                          'AI',
+                          style: TextStyle(
+                            color: AppTheme.textMuted,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      suggestion.title,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      suggestion.body,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+                    if (suggestion.action != SuggestionAction.none) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 32,
+                        child: ElevatedButton(
+                          onPressed: () => _handleAction(context, suggestion.action),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: suggestion.color,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            suggestion.actionLabel,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleAction(BuildContext context, SuggestionAction action) {
+    switch (action) {
+      case SuggestionAction.createReminder:
+        context.push('/reminders/create');
+        break;
+      case SuggestionAction.startMission:
+        context.push('/mission/create');
+        break;
+      case SuggestionAction.openSleepTimer:
+        context.go('/sleep');
+        break;
+      case SuggestionAction.viewAnalytics:
+        context.go('/analytics');
+        break;
+      case SuggestionAction.none:
+        break;
+    }
   }
 }
 

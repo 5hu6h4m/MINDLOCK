@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import 'package:audioplayers/audioplayers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/local/models/reminder_model.dart';
 
@@ -11,6 +12,7 @@ class FullScreenReminderOverlay extends StatefulWidget {
   final VoidCallback onSnooze;
   final VoidCallback onIgnore;
   final VoidCallback onDelay;
+  final Function(DateTime) onReschedule;
 
   const FullScreenReminderOverlay({
     super.key,
@@ -19,6 +21,7 @@ class FullScreenReminderOverlay extends StatefulWidget {
     required this.onSnooze,
     required this.onIgnore,
     required this.onDelay,
+    required this.onReschedule,
   });
 
   @override
@@ -32,6 +35,7 @@ class _FullScreenReminderOverlayState extends State<FullScreenReminderOverlay>
   late AnimationController _entryController;
   late Animation<double> _scaleEntry;
   late Animation<double> _fadeEntry;
+  final _audioPlayer = AudioPlayer();
 
   // Strict mode math puzzle
   int _mathA = 0, _mathB = 0;
@@ -63,10 +67,16 @@ class _FullScreenReminderOverlayState extends State<FullScreenReminderOverlay>
     final rng = Random();
     _mathA = rng.nextInt(20) + 5;
     _mathB = rng.nextInt(20) + 5;
+    
+    // Play alert sound
+    _audioPlayer.play(AssetSource('sounds/alert.mp3'), volume: 1.0);
+    _audioPlayer.setReleaseMode(ReleaseMode.loop);
   }
 
   @override
   void dispose() {
+    _audioPlayer.stop();
+    _audioPlayer.dispose();
     _pulseController.dispose();
     _entryController.dispose();
     _answerController.dispose();
@@ -168,6 +178,10 @@ class _FullScreenReminderOverlayState extends State<FullScreenReminderOverlay>
                         onDone: _tryDone,
                         onSnooze: widget.onSnooze,
                         onDelay: widget.onDelay,
+                        onReschedule: () {
+                          final tomorrow = DateTime.now().add(const Duration(days: 1));
+                          widget.onReschedule(DateTime(tomorrow.year, tomorrow.month, tomorrow.day, widget.reminder.dateTime.hour, widget.reminder.dateTime.minute));
+                        },
                         onIgnore: widget.onIgnore,
                         isStrictMode: isStrictMode,
                       ),
@@ -390,13 +404,14 @@ class _MathPuzzle extends StatelessWidget {
 }
 
 class _ActionButtons extends StatelessWidget {
-  final VoidCallback onDone, onSnooze, onDelay, onIgnore;
+  final VoidCallback onDone, onSnooze, onDelay, onIgnore, onReschedule;
   final bool isStrictMode;
 
   const _ActionButtons({
     required this.onDone,
     required this.onSnooze,
     required this.onDelay,
+    required this.onReschedule,
     required this.onIgnore,
     required this.isStrictMode,
   });
@@ -460,21 +475,28 @@ class _ActionButtons extends StatelessWidget {
         const SizedBox(height: 10),
         SizedBox(
           width: double.infinity,
-          child: TextButton.icon(
-            onPressed: isStrictMode ? null : onIgnore,
-            icon: Icon(Icons.close_rounded,
-                color: isStrictMode
-                    ? AppTheme.textMuted
-                    : AppTheme.accentRed,
-                size: 16),
-            label: Text(
-              isStrictMode ? 'Cannot ignore in strict mode' : 'Ignore',
-              style: TextStyle(
-                color: isStrictMode
-                    ? AppTheme.textMuted
-                    : AppTheme.accentRed,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextButton.icon(
+                onPressed: onReschedule,
+                icon: const Icon(Icons.event_repeat_rounded, color: AppTheme.accentCyan, size: 16),
+                label: const Text('Reschedule Tomorrow', style: TextStyle(color: AppTheme.accentCyan)),
               ),
-            ),
+              const SizedBox(width: 16),
+              TextButton.icon(
+                onPressed: isStrictMode ? null : onIgnore,
+                icon: Icon(Icons.close_rounded,
+                    color: isStrictMode ? AppTheme.textMuted : AppTheme.accentRed,
+                    size: 16),
+                label: Text(
+                  isStrictMode ? 'Locked' : 'Ignore',
+                  style: TextStyle(
+                    color: isStrictMode ? AppTheme.textMuted : AppTheme.accentRed,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],

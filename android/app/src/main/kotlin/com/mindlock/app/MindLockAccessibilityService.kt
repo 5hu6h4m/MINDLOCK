@@ -17,6 +17,16 @@ class MindLockAccessibilityService : AccessibilityService() {
             "com.facebook.android",
             "com.twitter.android",
         )
+        
+        // Critical apps that should NEVER be blocked
+        val SAFE_PACKAGES = setOf(
+            "com.android.dialer",
+            "com.google.android.dialer",
+            "com.android.contacts",
+            "com.google.android.contacts",
+            "com.android.settings",
+            "com.mindlock.app", // Always allow ourselves
+        )
 
         var instance: MindLockAccessibilityService? = null
         var isSleepTimerActive = false
@@ -40,6 +50,9 @@ class MindLockAccessibilityService : AccessibilityService() {
 
         // Mission Mode Blocking Logic
         if (isMissionActive && missionIntensity != "light") {
+            // Never block safe apps
+            if (packageName in SAFE_PACKAGES) return
+
             if (packageName in missionBlockedPackages) {
                 // Force exit
                 performGlobalAction(GLOBAL_ACTION_HOME)

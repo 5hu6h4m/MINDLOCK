@@ -1,4 +1,4 @@
-# FocusLock Android App
+# MINDLOCK Android App
 
 A premium digital discipline and reminder management Android app built with Flutter.
 
@@ -14,12 +14,12 @@ Flutter SDK is downloading to `C:\flutter\flutter.zip`. Once complete:
 
 ### Step 2: Run Setup Script
 ```powershell
-powershell -ExecutionPolicy Bypass -File "d:\DEV\projects\COSTOM REMINDER\FocusLock\setup_flutter.ps1"
+powershell -ExecutionPolicy Bypass -File "d:\DEV\projects\COSTOM REMINDER\MINDLOCK\setup_flutter.ps1"
 ```
 
 ### Step 3: Run the App
 ```powershell
-cd "d:\DEV\projects\COSTOM REMINDER\FocusLock"
+cd "d:\DEV\projects\COSTOM REMINDER\MINDLOCK"
 flutter run
 ```
 
@@ -34,7 +34,7 @@ flutter build apk --release
 ## 📁 Project Structure
 
 ```
-FocusLock/
+MINDLOCK/
 ├── lib/
 │   ├── main.dart                    # App entry point
 │   ├── core/
@@ -62,9 +62,9 @@ FocusLock/
 │       └── shell/main_shell.dart         # Nav bar
 ├── android/
 │   ├── app/src/main/
-│   │   ├── kotlin/com/focuslock/app/
+│   │   ├── kotlin/com/mindlock/app/
 │   │   │   ├── MainActivity.kt              # MethodChannel bridge
-│   │   │   ├── FocusLockAccessibilityService.kt
+│   │   │   ├── MINDLOCKAccessibilityService.kt
 │   │   │   ├── ForegroundReminderService.kt
 │   │   │   └── BootReceiver.kt
 │   │   ├── AndroidManifest.xml              # All permissions
@@ -112,7 +112,7 @@ The onboarding screen guides users to enable:
 
 To enable cloud sync:
 1. Create project at [console.firebase.google.com](https://console.firebase.google.com)
-2. Add Android app with package `com.focuslock.app`
+2. Add Android app with package `com.mindlock.app`
 3. Download `google-services.json`
 4. Place it in `android/app/google-services.json`
 5. Uncomment Firebase lines in `android/app/build.gradle`

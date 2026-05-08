@@ -22,7 +22,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
-        android:label="MindLock"
+        android:label="MINDLOCK"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true"
@@ -62,7 +62,7 @@
         <service
             android:name=".MindLockAccessibilityService"
             android:exported="true"
-            android:label="MindLock Accessibility"
+            android:label="MINDLOCK Accessibility"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />

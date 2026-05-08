@@ -18,6 +18,9 @@ class _MissionCreationScreenState extends State<MissionCreationScreen> {
   MissionIntensity _selectedIntensity = MissionIntensity.medium;
 
   final List<int> _durations = [15, 30, 45, 60, 90, 120, 180, 240];
+  
+  bool _isCoFocusEnabled = false;
+  final _roomCodeController = TextEditingController();
 
   @override
   void dispose() {
@@ -39,6 +42,8 @@ class _MissionCreationScreenState extends State<MissionCreationScreen> {
       'category': _selectedCategory.index,
       'duration': _durationMinutes,
       'intensity': _selectedIntensity.index,
+      'isCoFocus': _isCoFocusEnabled,
+      'roomCode': _roomCodeController.text.trim(),
     });
   }
 
@@ -248,6 +253,79 @@ class _MissionCreationScreenState extends State<MissionCreationScreen> {
                             ),
                           );
                         }),
+
+                        const SizedBox(height: 40),
+
+                        // Co-Focus Section
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                AppTheme.accentCyan.withOpacity(0.1),
+                                AppTheme.accentBlue.withOpacity(0.05),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppTheme.accentCyan.withOpacity(0.3)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.people_alt_rounded, color: AppTheme.accentCyan),
+                                  const SizedBox(width: 12),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Co-Focus Buddy',
+                                          style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold),
+                                        ),
+                                        Text(
+                                          'Focus together with friends',
+                                          style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Switch(
+                                    value: _isCoFocusEnabled,
+                                    onChanged: (v) => setState(() => _isCoFocusEnabled = v),
+                                    activeColor: AppTheme.accentCyan,
+                                  ),
+                                ],
+                              ),
+                              if (_isCoFocusEnabled) ...[
+                                const SizedBox(height: 16),
+                                TextField(
+                                  controller: _roomCodeController,
+                                  keyboardType: TextInputType.number,
+                                  maxLength: 4,
+                                  decoration: InputDecoration(
+                                    hintText: 'Enter 4-digit Room Code',
+                                    hintStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                                    counterText: '',
+                                    filled: true,
+                                    fillColor: AppTheme.bgDark.withOpacity(0.5),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    prefixIcon: const Icon(Icons.key_rounded, size: 18),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Shared punishment: If anyone leaves, everyone fails.',
+                                  style: TextStyle(color: AppTheme.accentAmber, fontSize: 10, fontStyle: FontStyle.italic),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
 
                         const SizedBox(height: 80),
                       ],

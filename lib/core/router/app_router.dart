@@ -1,5 +1,7 @@
 import 'package:go_router/go_router.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../presentation/home/home_screen.dart';
 import '../../presentation/reminders/reminders_screen.dart';
 import '../../presentation/reminders/create_reminder_screen.dart';
@@ -17,8 +19,12 @@ import '../../data/local/models/mission_model.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/onboarding',
+    initialLocation: '/check-onboarding',
     routes: [
+      GoRoute(
+        path: '/check-onboarding',
+        builder: (context, state) => const OnboardingCheck(),
+      ),
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
@@ -72,6 +78,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 category: MissionCategory.values[args['category']],
                 durationMinutes: args['duration'],
                 intensity: MissionIntensity.values[args['intensity']],
+                isCoFocus: args['isCoFocus'] ?? false,
+                roomCode: args['roomCode'] ?? '',
               );
             },
           ),
@@ -87,3 +95,34 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+class OnboardingCheck extends StatefulWidget {
+  const OnboardingCheck({super.key});
+  @override
+  State<OnboardingCheck> createState() => _OnboardingCheckState();
+}
+
+class _OnboardingCheckState extends State<OnboardingCheck> {
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeen = prefs.getBool('hasSeenOnboarding') ?? false;
+    if (mounted) {
+      if (hasSeen) {
+        context.go('/home');
+      } else {
+        context.go('/onboarding');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+  }
+}

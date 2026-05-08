@@ -3,6 +3,8 @@ import 'models/reminder_model.dart';
 import 'models/screen_schedule_model.dart';
 import 'models/mission_model.dart';
 import 'models/user_stats_model.dart';
+import 'models/timetable_model.dart';
+import 'models/co_focus_model.dart';
 
 class HiveBoxes {
   static const String remindersBox = 'reminders';
@@ -11,12 +13,16 @@ class HiveBoxes {
   static const String analyticsBox = 'analytics';
   static const String missionsBox = 'missions';
   static const String userStatsBox = 'user_stats';
+  static const String timetableBox = 'timetable';
+  static const String coFocusBox = 'co_focus';
 
   static Future<void> registerAdapters() async {
     Hive.registerAdapter(ReminderModelAdapter());
     Hive.registerAdapter(ScreenScheduleModelAdapter());
     Hive.registerAdapter(MissionModelAdapter());
     Hive.registerAdapter(UserStatsModelAdapter());
+    Hive.registerAdapter(TimetableSlotAdapter());
+    Hive.registerAdapter(CoFocusSessionAdapter());
   }
 
   static Future<void> openBoxes() async {
@@ -26,6 +32,8 @@ class HiveBoxes {
     await Hive.openBox(analyticsBox);
     await Hive.openBox<MissionModel>(missionsBox);
     await Hive.openBox<UserStatsModel>(userStatsBox);
+    await Hive.openBox<TimetableSlot>(timetableBox);
+    await Hive.openBox<CoFocusSession>(coFocusBox);
   }
 
   static Box<ReminderModel> get reminders => Hive.box<ReminderModel>(remindersBox);
@@ -34,4 +42,6 @@ class HiveBoxes {
   static Box get analytics => Hive.box(analyticsBox);
   static Box<MissionModel> get missions => Hive.box<MissionModel>(missionsBox);
   static Box<UserStatsModel> get userStats => Hive.box<UserStatsModel>(userStatsBox);
+  static Box<TimetableSlot> get timetable => Hive.box<TimetableSlot>(timetableBox);
+  static Box<CoFocusSession> get coFocus => Hive.box<CoFocusSession>(coFocusBox);
 }

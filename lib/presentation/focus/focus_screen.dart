@@ -1,7 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../data/local/hive_boxes.dart';
+import '../../data/local/models/user_stats_model.dart';
+import '../../data/local/models/mission_model.dart';
+import '../../services/discipline_service.dart';
+import '../../services/streak_service.dart';
 
 class FocusScreen extends ConsumerStatefulWidget {
   const FocusScreen({super.key});
@@ -75,6 +81,35 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
       _isRunning = false;
       _remainingSeconds = 0;
     });
+
+    // ── Save Focus Data ───────────────────────────────────────────────────
+    final points = (_selectedMinutes / 10).ceil() * 5; // e.g. 25 min = 15 points
+    
+    // Update Stats
+    final stats = ref.read(userStatsProvider);
+    final updated = UserStatsModel(
+      totalFocusPoints: stats.totalFocusPoints + points,
+      missionsCompleted: stats.missionsCompleted + 1,
+      missionsFailed: stats.missionsFailed,
+      currentStreak: stats.currentStreak,
+      longestStreak: stats.longestStreak,
+      lastUpdateDate: stats.lastUpdateDate,
+    );
+    HiveBoxes.userStats.put('main', updated);
+
+    // Log as a completed mission for analytics
+    final mission = MissionModel(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: 'Focus Session',
+      category: 'Focus',
+      startTime: DateTime.now().subtract(Duration(minutes: _selectedMinutes)),
+      endTime: DateTime.now(),
+      durationMinutes: _selectedMinutes,
+      intensity: 'light',
+      isCompleted: true,
+      focusPointsGained: points,
+    );
+    HiveBoxes.missions.add(mission);
     // Show completion dialog
     if (mounted) {
       showDialog(

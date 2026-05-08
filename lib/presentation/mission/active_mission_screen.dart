@@ -9,6 +9,7 @@ import '../../services/platform_channel.dart';
 import '../../data/local/hive_boxes.dart';
 import '../../data/local/models/mission_model.dart';
 import '../../data/local/models/user_stats_model.dart';
+import '../../services/firestore_service.dart';
 
 class ActiveMissionScreen extends StatefulWidget {
   final String title;
@@ -22,7 +23,12 @@ class ActiveMissionScreen extends StatefulWidget {
     required this.category,
     required this.durationMinutes,
     required this.intensity,
+    this.isCoFocus = false,
+    this.roomCode = '',
   });
+
+  final bool isCoFocus;
+  final String roomCode;
 
   @override
   State<ActiveMissionScreen> createState() => _ActiveMissionScreenState();
@@ -40,6 +46,8 @@ class _ActiveMissionScreenState extends State<ActiveMissionScreen>
   late AnimationController _interventionController;
 
   bool _showingIntervention = false;
+  final _firestore = FirestoreService();
+  StreamSubscription? _roomSubscription;
 
   final List<String> _blockedApps = [
     "com.google.android.youtube",
@@ -79,10 +87,16 @@ class _ActiveMissionScreenState extends State<ActiveMissionScreen>
       duration: const Duration(milliseconds: 300),
     );
 
-    // Start native blocking if Medium/Hardcore
-    if (widget.intensity != MissionIntensity.light) {
+    if (widget.intensity != MissionIntensity.hardcore) {
       PlatformChannel.startMission(_blockedApps, widget.intensity.name);
       PlatformChannel.onEscapeAttempt = _handleEscapeAttempt;
+      // Enable Smart DND
+      PlatformChannel.setDNDMode(true);
+    }
+
+    // Co-Focus Logic
+    if (widget.isCoFocus && widget.roomCode.isNotEmpty) {
+      _setupCoFocus();
     }
 
     // Start timer
@@ -107,6 +121,49 @@ class _ActiveMissionScreenState extends State<ActiveMissionScreen>
 
     PlatformChannel.vibrate(intensity: 2);
     _showIntervention();
+    
+    // Notify room of escape
+    if (widget.isCoFocus) {
+      _firestore.updateRoomStatus(widget.roomCode, 'failed');
+    }
+  }
+
+  void _setupCoFocus() async {
+    // Check if room exists, if not create it
+    await _firestore.createRoom(widget.roomCode, widget.durationMinutes);
+    
+    _roomSubscription = _firestore.watchRoom(widget.roomCode).listen((doc) {
+      if (!doc.exists) return;
+      final status = doc.get('status');
+      if (status == 'failed' && !_isCompleted) {
+        _handleBuddyFailed();
+      }
+    });
+  }
+
+  void _handleBuddyFailed() {
+    _timer.cancel();
+    _isCompleted = true;
+    PlatformChannel.stopMission();
+    PlatformChannel.setDNDMode(false);
+    
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          backgroundColor: AppTheme.bgDarkCard,
+          title: const Text('MISSION FAILED', style: TextStyle(color: AppTheme.accentRed)),
+          content: const Text('Your buddy escaped! The collective focus has been broken.'),
+          actions: [
+            TextButton(
+              onPressed: () => context.go('/home'),
+              child: const Text('Back to Home'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   void _showIntervention() {
@@ -130,6 +187,7 @@ class _ActiveMissionScreenState extends State<ActiveMissionScreen>
     // Stop native blocking
     PlatformChannel.stopMission();
     PlatformChannel.onEscapeAttempt = null;
+    PlatformChannel.setDNDMode(false);
 
     // Calculate XP
     int xp = widget.durationMinutes * 10;
@@ -166,6 +224,7 @@ class _ActiveMissionScreenState extends State<ActiveMissionScreen>
     _timer.cancel();
     PlatformChannel.stopMission();
     PlatformChannel.onEscapeAttempt = null;
+    PlatformChannel.setDNDMode(false);
 
     // Save as failed
     _mission.endTime = DateTime.now();
@@ -182,6 +241,7 @@ class _ActiveMissionScreenState extends State<ActiveMissionScreen>
   @override
   void dispose() {
     _timer.cancel();
+    _roomSubscription?.cancel();
     _pulseController.dispose();
     _interventionController.dispose();
     PlatformChannel.stopMission();
@@ -255,6 +315,30 @@ class _ActiveMissionScreenState extends State<ActiveMissionScreen>
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+                  
+                  if (widget.isCoFocus) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentCyan.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.accentCyan.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.people_alt_rounded, color: AppTheme.accentCyan, size: 14),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Co-Focus: Room ${widget.roomCode}',
+                            style: const TextStyle(color: AppTheme.accentCyan, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  
                   const Spacer(),
 
                   // Huge Timer

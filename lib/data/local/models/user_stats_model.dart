@@ -11,6 +11,7 @@ class UserStatsModel extends HiveObject {
   @HiveField(4) int missionsFailed;
   @HiveField(5) List<String> unlockedBadges;
   @HiveField(6) DateTime? lastMissionDate;
+  @HiveField(7) DateTime? lastUpdateDate;
 
   UserStatsModel({
     this.totalFocusPoints = 0,
@@ -20,6 +21,7 @@ class UserStatsModel extends HiveObject {
     this.missionsFailed = 0,
     this.unlockedBadges = const [],
     this.lastMissionDate,
+    this.lastUpdateDate,
   });
 
   UserStatsModel copyWith({
@@ -30,6 +32,7 @@ class UserStatsModel extends HiveObject {
     int? missionsFailed,
     List<String>? unlockedBadges,
     DateTime? lastMissionDate,
+    DateTime? lastUpdateDate,
   }) {
     return UserStatsModel(
       totalFocusPoints: totalFocusPoints ?? this.totalFocusPoints,
@@ -39,6 +42,7 @@ class UserStatsModel extends HiveObject {
       missionsFailed: missionsFailed ?? this.missionsFailed,
       unlockedBadges: unlockedBadges ?? this.unlockedBadges,
       lastMissionDate: lastMissionDate ?? this.lastMissionDate,
+      lastUpdateDate: lastUpdateDate ?? this.lastUpdateDate,
     );
   }
 }

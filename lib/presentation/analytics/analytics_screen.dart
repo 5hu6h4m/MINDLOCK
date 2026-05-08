@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../../core/theme/app_theme.dart';
+import 'package:intl/intl.dart';
 import '../../data/repositories/reminder_repository.dart';
+import '../../services/discipline_service.dart';
+import '../../services/streak_service.dart';
+import '../../services/platform_channel.dart';
+import '../../core/theme/app_theme.dart';
 
 class AnalyticsScreen extends ConsumerWidget {
   const AnalyticsScreen({super.key});
@@ -10,11 +14,17 @@ class AnalyticsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final repo = ref.watch(reminderRepositoryProvider);
+    final discipline = ref.watch(disciplineServiceProvider);
+    final stats = ref.watch(userStatsProvider);
+    
+    final score = discipline.calculateDailyScore(DateTime.now());
+    final label = discipline.getDisciplineLabel(score);
+    final weeklyStats = repo.getWeeklyStats();
+    
     final completed = repo.totalCompleted;
     final ignored = repo.totalIgnored;
     final pending = repo.totalPending;
-    final total = completed + ignored + pending;
-    final rate = total == 0 ? 0.0 : completed / total;
+    final rate = repo.completionRate;
 
     return Scaffold(
       backgroundColor: AppTheme.bgDark,
@@ -27,7 +37,7 @@ class AnalyticsScreen extends ConsumerWidget {
         physics: const BouncingScrollPhysics(),
         children: [
           // ── Discipline Score ──────────────────────────────────────────────
-          _DisScore(rate: rate),
+          _DisScore(rate: score, label: label),
           const SizedBox(height: 20),
 
           // ── Stats Grid ───────────────────────────────────────────────────
@@ -38,13 +48,36 @@ class AnalyticsScreen extends ConsumerWidget {
           // ── Weekly Chart ─────────────────────────────────────────────────
           _SectionTitle('Weekly Activity'),
           const SizedBox(height: 12),
-          _WeeklyChart(completed: completed, ignored: ignored),
+          _WeeklyChart(stats: weeklyStats),
           const SizedBox(height: 20),
 
           // ── Streaks ───────────────────────────────────────────────────────
-          _SectionTitle('Streaks & Badges'),
+          _StreaksBadges(current: stats.currentStreak, longest: stats.longestStreak),
+          const SizedBox(height: 20),
+
+          // ── Top Distractions ──────────────────────────────────────────────
+          _SectionTitle('Top Distractions'),
           const SizedBox(height: 12),
-          _StreaksBadges(),
+          FutureBuilder<Map<String, int>>(
+            future: PlatformChannel.getUsageStats(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const _InsightCard(
+                  icon: Icons.info_outline_rounded,
+                  color: AppTheme.textMuted,
+                  title: 'No Data',
+                  body: 'Usage stats permission required to track distractions.',
+                );
+              }
+              final sorted = snapshot.data!.entries.toList()
+                ..sort((a, b) => b.value.compareTo(a.value));
+              final top3 = sorted.take(3).toList();
+              
+              return Column(
+                children: top3.map((e) => _DistractionTile(pkg: e.key, mins: e.value)).toList(),
+              );
+            },
+          ),
           const SizedBox(height: 20),
 
           // ── Insights ─────────────────────────────────────────────────────
@@ -86,7 +119,8 @@ class _SectionTitle extends StatelessWidget {
 
 class _DisScore extends StatelessWidget {
   final double rate;
-  const _DisScore({required this.rate});
+  final String label;
+  const _DisScore({required this.rate, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -142,11 +176,7 @@ class _DisScore extends StatelessWidget {
                         fontSize: 18)),
                 const SizedBox(height: 4),
                 Text(
-                  pct >= 80
-                      ? 'Excellent discipline! 🔥'
-                      : pct >= 50
-                          ? 'Good progress, keep going!'
-                          : 'Room to improve. Stay focused.',
+                  label,
                   style: const TextStyle(
                       color: AppTheme.textSecondary, fontSize: 13),
                 ),
@@ -248,15 +278,23 @@ class _StatCard extends StatelessWidget {
 }
 
 class _WeeklyChart extends StatelessWidget {
-  final int completed, ignored;
-  const _WeeklyChart({required this.completed, required this.ignored});
+  final Map<int, List<int>> stats;
+  const _WeeklyChart({required this.stats});
 
   @override
   Widget build(BuildContext context) {
-    // Mock weekly data (replace with real data)
-    final completedData = [2.0, 5.0, 3.0, 7.0, 4.0, 6.0, completed.toDouble().clamp(0.0, 10.0)];
-    final ignoredData = [1.0, 2.0, 1.0, 3.0, 1.0, 2.0, ignored.toDouble().clamp(0.0, 10.0)];
-    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final now = DateTime.now();
+    final days = List.generate(7, (i) {
+      final date = now.subtract(Duration(days: 6 - i));
+      return DateFormat('E').format(date);
+    });
+
+    // Find max value for scaling
+    double maxVal = 5.0;
+    for (final s in stats.values) {
+      if (s[0] + s[1] > maxVal) maxVal = (s[0] + s[1]).toDouble();
+    }
+    maxVal += 2;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -295,17 +333,18 @@ class _WeeklyChart extends StatelessWidget {
           gridData: const FlGridData(show: false),
           borderData: FlBorderData(show: false),
           barGroups: List.generate(7, (i) {
+            final data = stats[i] ?? [0, 0];
             return BarChartGroupData(
               x: i,
               barRods: [
                 BarChartRodData(
-                  toY: completedData[i],
+                  toY: data[0].toDouble(),
                   color: AppTheme.primaryPurple,
                   width: 10,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 BarChartRodData(
-                  toY: ignoredData[i],
+                  toY: data[1].toDouble(),
                   color: AppTheme.accentRed.withOpacity(0.5),
                   width: 10,
                   borderRadius: BorderRadius.circular(4),
@@ -320,6 +359,9 @@ class _WeeklyChart extends StatelessWidget {
 }
 
 class _StreaksBadges extends StatelessWidget {
+  final int current, longest;
+  const _StreaksBadges({required this.current, required this.longest});
+
   final _badges = const [
     _Badge('🌙', 'Night\nDiscipline', AppTheme.accentBlue),
     _Badge('⚔️', 'Task\nWarrior', AppTheme.primaryPurple),
@@ -329,8 +371,26 @@ class _StreaksBadges extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: _badges.map((b) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            _StatCard(
+                value: current.toString(),
+                label: 'Current Streak',
+                icon: Icons.local_fire_department_rounded,
+                color: AppTheme.accentAmber),
+            const SizedBox(width: 12),
+            _StatCard(
+                value: longest.toString(),
+                label: 'Longest Streak',
+                icon: Icons.emoji_events_rounded,
+                color: AppTheme.accentCyan),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: _badges.map((b) {
         return Expanded(
           child: Container(
             margin: const EdgeInsets.only(right: 8),
@@ -414,6 +474,49 @@ class _InsightCard extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DistractionTile extends StatelessWidget {
+  final String pkg;
+  final int mins;
+  const _DistractionTile({required this.pkg, required this.mins});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = pkg.split('.').last.toUpperCase();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.bgDarkCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.borderColor),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppTheme.accentRed.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.warning_amber_rounded, color: AppTheme.accentRed, size: 18),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
+                Text(pkg, style: const TextStyle(color: AppTheme.textMuted, fontSize: 10)),
+              ],
+            ),
+          ),
+          Text('$mins mins', style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold)),
         ],
       ),
     );

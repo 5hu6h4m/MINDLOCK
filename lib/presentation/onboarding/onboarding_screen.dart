@@ -42,7 +42,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       emoji: '⚙️',
       title: 'Setup Permissions',
       subtitle:
-          'MindLock needs a few permissions to work its magic. Tap below to enable them.',
+          'MINDLOCK needs a few permissions to work its magic. Tap below to enable them.',
       color: AppTheme.accentAmber,
       isPermissionPage: true,
     ),
@@ -66,7 +66,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   Future<void> _finish() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('onboarding_done', true);
+    await prefs.setBool('hasSeenOnboarding', true);
     if (mounted) context.go('/home');
   }
 

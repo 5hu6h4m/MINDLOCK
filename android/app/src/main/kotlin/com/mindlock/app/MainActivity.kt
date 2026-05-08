@@ -155,6 +155,71 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
 
+                    "setDNDMode" -> {
+                        val enabled = call.argument<Boolean>("enabled") ?: false
+                        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            if (notificationManager.isNotificationPolicyAccessGranted) {
+                                val filter = if (enabled) android.app.NotificationManager.INTERRUPTION_FILTER_PRIORITY else android.app.NotificationManager.INTERRUPTION_FILTER_ALL
+                                notificationManager.setInterruptionFilter(filter)
+                                result.success(true)
+                            } else {
+                                startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+                                result.success(false)
+                            }
+                        } else {
+                            result.success(false)
+                        }
+                    }
+
+                    "isDNDPermissionGranted" -> {
+                        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            result.success(notificationManager.isNotificationPolicyAccessGranted)
+                        } else {
+                            result.success(true)
+                        }
+                    }
+
+                    "pauseMedia" -> {
+                        val audioManager = getSystemService(Context.AUDIO_SERVICE) as android.app.AudioManager
+                        val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE)
+                        val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE)
+                        audioManager.dispatchMediaKeyEvent(eventDown)
+                        audioManager.dispatchMediaKeyEvent(eventUp)
+                        result.success(true)
+                    }
+
+                    "lockScreen" -> {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            MindLockAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN)
+                            result.success(true)
+                        } else {
+                            result.success(false)
+                        }
+                    }
+
+                    "openUrl" -> {
+                        val url = call.argument<String>("url") ?: ""
+                        val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(intent)
+                        result.success(true)
+                    }
+
+                    "openEmail" -> {
+                        val recipient = call.argument<String>("recipient") ?: ""
+                        val subject = call.argument<String>("subject") ?: ""
+                        val intent = Intent(Intent.ACTION_SENDTO).apply {
+                            data = android.net.Uri.parse("mailto:")
+                            putExtra(Intent.EXTRA_EMAIL, arrayOf(recipient))
+                            putExtra(Intent.EXTRA_SUBJECT, subject)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        startActivity(intent)
+                        result.success(true)
+                    }
+
                     else -> result.notImplemented()
                 }
             }

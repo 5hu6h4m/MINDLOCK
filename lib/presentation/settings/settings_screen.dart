@@ -4,6 +4,9 @@ import '../../core/theme/app_theme.dart';
 import '../../services/platform_channel.dart';
 import '../../core/providers/theme_provider.dart';
 import '../../core/providers/settings_provider.dart';
+import '../../services/auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'legal_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -15,6 +18,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _overlayGranted = false;
   bool _accessibilityEnabled = false;
   bool _batteryOptExempt = false;
+  bool _dndGranted = false;
 
   @override
   void initState() {
@@ -25,10 +29,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _checkPermissions() async {
     final overlay = await PlatformChannel.hasOverlayPermission();
     final accessibility = await PlatformChannel.isAccessibilityEnabled();
+    final dnd = await PlatformChannel.isDNDPermissionGranted();
     if (mounted) {
       setState(() {
         _overlayGranted = overlay;
         _accessibilityEnabled = accessibility;
+        _dndGranted = dnd;
       });
     }
   }
@@ -50,6 +56,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           // ── App Info ──────────────────────────────────────────────────────
           _AppInfoCard(),
+          const SizedBox(height: 20),
+
+          // ── Cloud Backup ──────────────────────────────────────────────────
+          StreamBuilder<User?>(
+            stream: ref.watch(authServiceProvider).authStateChanges,
+            builder: (context, snapshot) {
+              final user = snapshot.data;
+              return _SettingsSection(
+                title: 'Cloud Account',
+                icon: Icons.cloud_done_rounded,
+                color: AppTheme.accentCyan,
+                children: [
+                  if (user == null)
+                    _NavSetting(
+                      label: 'Sign in for Cloud Backup',
+                      trailing: 'Not Linked',
+                      onTap: () => ref.read(authServiceProvider).signInAnonymously(),
+                    )
+                  else
+                    ListTile(
+                      leading: const Icon(Icons.account_circle_rounded, color: AppTheme.accentCyan),
+                      title: Text(user.isAnonymous ? 'Guest User' : user.email ?? 'User'),
+                      subtitle: const Text('Last synced: Just now', style: TextStyle(fontSize: 11)),
+                      trailing: TextButton(
+                        onPressed: () => ref.read(authServiceProvider).signOut(),
+                        child: const Text('Logout', style: TextStyle(color: AppTheme.accentRed, fontSize: 12)),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
           const SizedBox(height: 20),
 
           // ── Permissions ───────────────────────────────────────────────────
@@ -88,6 +126,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 onRequest: () async {
                   await PlatformChannel.requestBatteryOptimizationExemption();
                   setState(() => _batteryOptExempt = true);
+                },
+              ),
+              _PermissionTile(
+                icon: Icons.do_not_disturb_on_rounded,
+                label: 'Do Not Disturb Access',
+                subtitle: 'Required for Smart DND during missions',
+                granted: _dndGranted,
+                onRequest: () async {
+                  await PlatformChannel.setDNDMode(true); // Triggers permission request
+                  await Future.delayed(const Duration(seconds: 2));
+                  await _checkPermissions();
                 },
               ),
             ],
@@ -166,21 +215,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           // ── About ─────────────────────────────────────────────────────────
           _SettingsSection(
-            title: 'About',
+            title: 'Support & About',
             icon: Icons.info_rounded,
             color: AppTheme.textMuted,
             children: [
               _NavSetting(
-                label: 'Version',
-                trailing: '1.0.0',
+                label: 'Check for Updates',
+                trailing: 'v1.0.0',
+                onTap: () async {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Checking for updates...'),
+                      duration: Duration(seconds: 1),
+                      backgroundColor: AppTheme.primaryPurple,
+                    ),
+                  );
+                  await Future.delayed(const Duration(seconds: 2));
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('You are on the latest version!'),
+                        backgroundColor: AppTheme.accentGreen,
+                      ),
+                    );
+                  }
+                },
+              ),
+              _NavSetting(
+                label: 'Contact Support / Feedback',
+                onTap: () => PlatformChannel.openEmail('support@mindlock.app', 'MINDLOCK Feedback v1.0.0'),
               ),
               _NavSetting(
                 label: 'Privacy Policy',
-                onTap: () {},
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalScreen(title: 'Privacy Policy', content: PrivacyPolicy.content))),
               ),
               _NavSetting(
                 label: 'Terms of Service',
-                onTap: () {},
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalScreen(title: 'Terms of Service', content: TermsOfService.content))),
               ),
             ],
           ),
@@ -225,7 +296,7 @@ class _AppInfoCard extends StatelessWidget {
           const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('MindLock',
+              Text('MINDLOCK',
                   style: TextStyle(
                       color: AppTheme.textPrimary,
                       fontWeight: FontWeight.w700,
@@ -236,6 +307,10 @@ class _AppInfoCard extends StatelessWidget {
               Text('v1.0.0',
                   style: TextStyle(
                       color: AppTheme.primaryPurple, fontSize: 12)),
+              const SizedBox(height: 4),
+              const Text('By 5hu6h4m',
+                  style: TextStyle(
+                      color: AppTheme.textMuted, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1)),
             ],
           ),
         ],

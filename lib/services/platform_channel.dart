@@ -137,4 +137,53 @@ class PlatformChannel {
       await _channel.invokeMethod('stopMission');
     } catch (_) {}
   }
+
+  /// Toggle Do Not Disturb mode
+  static Future<bool> setDNDMode(bool enabled) async {
+    try {
+      return await _channel.invokeMethod<bool>('setDNDMode', {'enabled': enabled}) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Check if DND access is granted
+  static Future<bool> isDNDPermissionGranted() async {
+    try {
+      return await _channel.invokeMethod<bool>('isDNDPermissionGranted') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Pause current media playback
+  static Future<void> pauseMedia() async {
+    try {
+      await _channel.invokeMethod('pauseMedia');
+    } catch (_) {}
+  }
+
+  /// Lock device screen
+  static Future<void> lockScreen() async {
+    try {
+      await _channel.invokeMethod('lockScreen');
+    } catch (_) {}
+  }
+
+  /// Open external URL
+  static Future<void> openUrl(String url) async {
+    try {
+      await _channel.invokeMethod('openUrl', {'url': url});
+    } catch (_) {}
+  }
+
+  /// Open email client
+  static Future<void> openEmail(String recipient, String subject) async {
+    try {
+      await _channel.invokeMethod('openEmail', {
+        'recipient': recipient,
+        'subject': subject,
+      });
+    } catch (_) {}
+  }
 }

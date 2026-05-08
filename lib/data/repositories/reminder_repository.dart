@@ -82,6 +82,14 @@ class ReminderRepository {
     }
   }
 
+  Future<void> rescheduleToDate(String id, DateTime newDate) async {
+    final reminder = _box.get(id);
+    if (reminder != null) {
+      reminder.dateTime = newDate;
+      await reminder.save();
+    }
+  }
+
   Future<void> decrementRepeat(String id) async {
     final reminder = _box.get(id);
     if (reminder != null && reminder.remainingRepeats > 0) {
@@ -107,6 +115,14 @@ class ReminderRepository {
           r.dateTime.day == now.day;
     }).toList()
       ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+  }
+
+  List<ReminderModel> getHistoryForDate(DateTime date) {
+    return _box.values.where((r) {
+      return r.dateTime.year == date.year &&
+          r.dateTime.month == date.month &&
+          r.dateTime.day == date.day;
+    }).toList();
   }
 
   List<ReminderModel> getPending() {
@@ -141,5 +157,24 @@ class ReminderRepository {
     final total = _box.length;
     if (total == 0) return 0;
     return totalCompleted / total;
+  }
+
+  Map<int, List<int>> getWeeklyStats() {
+    final now = DateTime.now();
+    final stats = <int, List<int>>{}; // dayOffset -> [completed, ignored]
+
+    for (int i = 0; i < 7; i++) {
+      final date = now.subtract(Duration(days: i));
+      final dayTasks = _box.values.where((r) {
+        return r.dateTime.year == date.year &&
+            r.dateTime.month == date.month &&
+            r.dateTime.day == date.day;
+      });
+
+      final completed = dayTasks.where((r) => r.isCompleted).length;
+      final ignored = dayTasks.where((r) => r.isIgnored).length;
+      stats[6 - i] = [completed, ignored];
+    }
+    return stats;
   }
 }
