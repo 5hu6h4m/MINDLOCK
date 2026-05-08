@@ -13,6 +13,7 @@ class AnalyticsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final repo = ref.watch(reminderRepositoryProvider);
     final discipline = ref.watch(disciplineServiceProvider);
     final stats = ref.watch(userStatsProvider);
@@ -27,46 +28,48 @@ class AnalyticsScreen extends ConsumerWidget {
     final rate = repo.completionRate;
 
     return Scaffold(
-      backgroundColor: AppTheme.bgDark,
+      backgroundColor: isDark ? AppTheme.bgDark : const Color(0xFFF8F9FE),
       appBar: AppBar(
-        backgroundColor: AppTheme.bgDark,
-        title: const Text('Analytics'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text('Analytics', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+        centerTitle: true,
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
         physics: const BouncingScrollPhysics(),
         children: [
           // ── Discipline Score ──────────────────────────────────────────────
-          _DisScore(rate: score, label: label),
+          _DisScore(rate: score, label: label, isDark: isDark),
           const SizedBox(height: 20),
 
           // ── Stats Grid ───────────────────────────────────────────────────
-          _StatsGrid(
-              completed: completed, ignored: ignored, pending: pending),
-          const SizedBox(height: 20),
+          _StatsGrid(completed: completed, ignored: ignored, pending: pending, isDark: isDark),
+          const SizedBox(height: 24),
 
           // ── Weekly Chart ─────────────────────────────────────────────────
-          _SectionTitle('Weekly Activity'),
+          _SectionTitle('Weekly Activity', isDark: isDark),
           const SizedBox(height: 12),
-          _WeeklyChart(stats: weeklyStats),
-          const SizedBox(height: 20),
+          _WeeklyChart(stats: weeklyStats, isDark: isDark),
+          const SizedBox(height: 24),
 
           // ── Streaks ───────────────────────────────────────────────────────
-          _StreaksBadges(current: stats.currentStreak, longest: stats.longestStreak),
-          const SizedBox(height: 20),
+          _StreaksBadges(current: stats.currentStreak, longest: stats.longestStreak, isDark: isDark),
+          const SizedBox(height: 24),
 
           // ── Top Distractions ──────────────────────────────────────────────
-          _SectionTitle('Top Distractions'),
+          _SectionTitle('Top Distractions', isDark: isDark),
           const SizedBox(height: 12),
           FutureBuilder<Map<String, int>>(
             future: PlatformChannel.getUsageStats(),
             builder: (context, snapshot) {
               if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const _InsightCard(
+                return _InsightCard(
                   icon: Icons.info_outline_rounded,
                   color: AppTheme.textMuted,
                   title: 'No Data',
                   body: 'Usage stats permission required to track distractions.',
+                  isDark: isDark,
                 );
               }
               final sorted = snapshot.data!.entries.toList()
@@ -74,29 +77,29 @@ class AnalyticsScreen extends ConsumerWidget {
               final top3 = sorted.take(3).toList();
               
               return Column(
-                children: top3.map((e) => _DistractionTile(pkg: e.key, mins: e.value)).toList(),
+                children: top3.map((e) => _DistractionTile(pkg: e.key, mins: e.value, isDark: isDark)).toList(),
               );
             },
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
           // ── Insights ─────────────────────────────────────────────────────
-          _SectionTitle('Insights'),
+          _SectionTitle('Insights', isDark: isDark),
           const SizedBox(height: 12),
           _InsightCard(
             icon: Icons.lightbulb_rounded,
             color: AppTheme.accentAmber,
             title: 'Keep it consistent',
-            body:
-                'Completing reminders before 9 PM improves your sleep quality.',
+            body: 'Completing reminders before 9 PM improves your sleep quality.',
+            isDark: isDark,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           _InsightCard(
             icon: Icons.trending_up_rounded,
             color: AppTheme.accentGreen,
             title: 'Good discipline!',
-            body: 'Your completion rate is ${(rate * 100).toStringAsFixed(0)}%. '
-                'Aim for 80%+ for maximum focus.',
+            body: 'Your completion rate is ${(rate * 100).toStringAsFixed(0)}%. Aim for 80%+ for maximum focus.',
+            isDark: isDark,
           ),
         ],
       ),
@@ -106,21 +109,23 @@ class AnalyticsScreen extends ConsumerWidget {
 
 class _SectionTitle extends StatelessWidget {
   final String text;
-  const _SectionTitle(this.text);
+  final bool isDark;
+  const _SectionTitle(this.text, {required this.isDark});
   @override
   Widget build(BuildContext context) {
     return Text(text,
-        style: const TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 17,
-            fontWeight: FontWeight.w600));
+        style: TextStyle(
+            color: isDark ? AppTheme.textPrimary : Colors.black87,
+            fontSize: 18,
+            fontWeight: FontWeight.w700));
   }
 }
 
 class _DisScore extends StatelessWidget {
   final double rate;
   final String label;
-  const _DisScore({required this.rate, required this.label});
+  final bool isDark;
+  const _DisScore({required this.rate, required this.label, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -128,16 +133,10 @@ class _DisScore extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.primaryPurple.withOpacity(0.15),
-            AppTheme.accentBlue.withOpacity(0.08),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: isDark ? AppTheme.bgDarkElevated.withOpacity(0.5) : Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppTheme.primaryPurple.withOpacity(0.2)),
+        border: Border.all(color: isDark ? AppTheme.primaryPurple.withOpacity(0.2) : Colors.black.withOpacity(0.05)),
+        boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 8))],
       ),
       child: Row(
         children: [
@@ -150,16 +149,15 @@ class _DisScore extends StatelessWidget {
                 CircularProgressIndicator(
                   value: rate,
                   strokeWidth: 8,
-                  backgroundColor: AppTheme.bgDarkElevated,
-                  valueColor: const AlwaysStoppedAnimation(
-                      AppTheme.primaryPurple),
+                  backgroundColor: isDark ? AppTheme.bgDarkElevated : Colors.black.withOpacity(0.05),
+                  valueColor: const AlwaysStoppedAnimation(AppTheme.primaryPurple),
                   strokeCap: StrokeCap.round,
                 ),
                 Text('$pct%',
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 18,
+                    style: TextStyle(
+                      color: isDark ? AppTheme.textPrimary : Colors.black87,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 20,
                     )),
               ],
             ),
@@ -169,30 +167,28 @@ class _DisScore extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Discipline Score',
+                Text('Discipline',
                     style: TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 18)),
+                        color: isDark ? AppTheme.textPrimary : Colors.black87,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 20)),
                 const SizedBox(height: 4),
                 Text(
                   label,
-                  style: const TextStyle(
-                      color: AppTheme.textSecondary, fontSize: 13),
+                  style: TextStyle(
+                      color: isDark ? AppTheme.textSecondary : Colors.black54, fontSize: 14),
                 ),
-                const SizedBox(height: 10),
-                LinearProgressIndicator(
-                  value: rate,
-                  backgroundColor: AppTheme.bgDarkElevated,
-                  valueColor: AlwaysStoppedAnimation(
-                    pct >= 80
-                        ? AppTheme.accentGreen
-                        : pct >= 50
-                            ? AppTheme.primaryPurple
-                            : AppTheme.accentAmber,
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: LinearProgressIndicator(
+                    value: rate,
+                    backgroundColor: isDark ? AppTheme.bgDarkElevated : Colors.black.withOpacity(0.05),
+                    valueColor: AlwaysStoppedAnimation(
+                      pct >= 80 ? AppTheme.accentGreen : pct >= 50 ? AppTheme.primaryPurple : AppTheme.accentAmber,
+                    ),
+                    minHeight: 8,
                   ),
-                  borderRadius: BorderRadius.circular(4),
-                  minHeight: 6,
                 ),
               ],
             ),
@@ -205,32 +201,18 @@ class _DisScore extends StatelessWidget {
 
 class _StatsGrid extends StatelessWidget {
   final int completed, ignored, pending;
-  const _StatsGrid(
-      {required this.completed,
-      required this.ignored,
-      required this.pending});
+  final bool isDark;
+  const _StatsGrid({required this.completed, required this.ignored, required this.pending, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _StatCard(
-            value: completed.toString(),
-            label: 'Completed',
-            icon: Icons.check_circle_rounded,
-            color: AppTheme.accentGreen),
+        _StatCard(value: completed.toString(), label: 'Done', icon: Icons.check_circle_rounded, color: AppTheme.accentGreen, isDark: isDark),
         const SizedBox(width: 12),
-        _StatCard(
-            value: ignored.toString(),
-            label: 'Ignored',
-            icon: Icons.cancel_rounded,
-            color: AppTheme.accentRed),
+        _StatCard(value: ignored.toString(), label: 'Missed', icon: Icons.cancel_rounded, color: AppTheme.accentRed, isDark: isDark),
         const SizedBox(width: 12),
-        _StatCard(
-            value: pending.toString(),
-            label: 'Pending',
-            icon: Icons.pending_rounded,
-            color: AppTheme.accentAmber),
+        _StatCard(value: pending.toString(), label: 'Left', icon: Icons.pending_rounded, color: AppTheme.accentAmber, isDark: isDark),
       ],
     );
   }
@@ -240,36 +222,28 @@ class _StatCard extends StatelessWidget {
   final String value, label;
   final IconData icon;
   final Color color;
+  final bool isDark;
 
-  const _StatCard(
-      {required this.value,
-      required this.label,
-      required this.icon,
-      required this.color});
+  const _StatCard({required this.value, required this.label, required this.icon, required this.color, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.2)),
+          color: isDark ? AppTheme.bgDarkCard : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isDark ? AppTheme.borderColor : Colors.black.withOpacity(0.05)),
+          boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(height: 8),
-            Text(value,
-                style: TextStyle(
-                    color: color,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700)),
-            Text(label,
-                style: const TextStyle(
-                    color: AppTheme.textMuted, fontSize: 11)),
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 12),
+            Text(value, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 24, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 2),
+            Text(label, style: const TextStyle(color: AppTheme.textMuted, fontSize: 12, fontWeight: FontWeight.w600)),
           ],
         ),
       ),
@@ -279,53 +253,35 @@ class _StatCard extends StatelessWidget {
 
 class _WeeklyChart extends StatelessWidget {
   final Map<int, List<int>> stats;
-  const _WeeklyChart({required this.stats});
+  final bool isDark;
+  const _WeeklyChart({required this.stats, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final days = List.generate(7, (i) {
-      final date = now.subtract(Duration(days: 6 - i));
-      return DateFormat('E').format(date);
-    });
-
-    // Find max value for scaling
-    double maxVal = 5.0;
-    for (final s in stats.values) {
-      if (s[0] + s[1] > maxVal) maxVal = (s[0] + s[1]).toDouble();
-    }
-    maxVal += 2;
-
+    final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
     return Container(
-      padding: const EdgeInsets.all(16),
-      height: 200,
+      padding: const EdgeInsets.all(20),
+      height: 220,
       decoration: BoxDecoration(
-        color: AppTheme.bgDarkCard,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.borderColor),
+        color: isDark ? AppTheme.bgDarkCard : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: isDark ? AppTheme.borderColor : Colors.black.withOpacity(0.05)),
       ),
       child: BarChart(
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
-          maxY: 12,
+          maxY: 10,
           barTouchData: BarTouchData(enabled: false),
           titlesData: FlTitlesData(
-            leftTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
+            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                getTitlesWidget: (v, meta) => Text(
-                  days[v.toInt()],
-                  style: const TextStyle(
-                      color: AppTheme.textMuted, fontSize: 11),
+                getTitlesWidget: (v, meta) => Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(days[v.toInt() % 7], style: const TextStyle(color: AppTheme.textMuted, fontSize: 12, fontWeight: FontWeight.bold)),
                 ),
               ),
             ),
@@ -337,18 +293,8 @@ class _WeeklyChart extends StatelessWidget {
             return BarChartGroupData(
               x: i,
               barRods: [
-                BarChartRodData(
-                  toY: data[0].toDouble(),
-                  color: AppTheme.primaryPurple,
-                  width: 10,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                BarChartRodData(
-                  toY: data[1].toDouble(),
-                  color: AppTheme.accentRed.withOpacity(0.5),
-                  width: 10,
-                  borderRadius: BorderRadius.circular(4),
-                ),
+                BarChartRodData(toY: data[0].toDouble(), color: AppTheme.primaryPurple, width: 12, borderRadius: BorderRadius.circular(4)),
+                BarChartRodData(toY: data[1].toDouble(), color: AppTheme.accentRed.withOpacity(0.5), width: 12, borderRadius: BorderRadius.circular(4)),
               ],
             );
           }),
@@ -360,50 +306,36 @@ class _WeeklyChart extends StatelessWidget {
 
 class _StreaksBadges extends StatelessWidget {
   final int current, longest;
-  const _StreaksBadges({required this.current, required this.longest});
-
-  final _badges = const [
-    _Badge('🌙', 'Night\nDiscipline', AppTheme.accentBlue),
-    _Badge('⚔️', 'Task\nWarrior', AppTheme.primaryPurple),
-    _Badge('🎯', 'Focus\nMaster', AppTheme.accentCyan),
-    _Badge('📵', 'No-Reels\nChamp', AppTheme.accentGreen),
-  ];
+  final bool isDark;
+  const _StreaksBadges({required this.current, required this.longest, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
     final repo = ProviderScope.containerOf(context).read(reminderRepositoryProvider);
-    final completed = repo.totalCompleted;
-    
-    // Logic for unlocking badges
     final isNightWarrior = repo.getCompletedAfter(20).length >= 3;
-    final isTaskWarrior = completed >= 10;
+    final isTaskWarrior = repo.totalCompleted >= 10;
     final isFocusMaster = repo.totalMissionsCompleted >= 3;
     
     return Column(
       children: [
         Row(
           children: [
-            _StatCard(
-                value: current.toString(),
-                label: 'Current Streak',
-                icon: Icons.local_fire_department_rounded,
-                color: AppTheme.accentAmber),
+            _StatCard(value: current.toString(), label: 'Streak', icon: Icons.local_fire_department_rounded, color: AppTheme.accentAmber, isDark: isDark),
             const SizedBox(width: 12),
-            _StatCard(
-                value: longest.toString(),
-                label: 'Longest Streak',
-                icon: Icons.emoji_events_rounded,
-                color: AppTheme.accentCyan),
+            _StatCard(value: longest.toString(), label: 'Best', icon: Icons.emoji_events_rounded, color: AppTheme.accentCyan, isDark: isDark),
           ],
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            _BadgeTile(emoji: '🌙', label: 'Night\nDiscipline', color: AppTheme.accentBlue, unlocked: isNightWarrior),
-            _BadgeTile(emoji: '⚔️', label: 'Task\nWarrior', color: AppTheme.primaryPurple, unlocked: isTaskWarrior),
-            _BadgeTile(emoji: '🎯', label: 'Focus\nMaster', color: AppTheme.accentCyan, unlocked: isFocusMaster),
-            _BadgeTile(emoji: '📵', label: 'No-Reels\nChamp', color: AppTheme.accentGreen, unlocked: false), // Usage logic added later
-          ],
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _BadgeTile(emoji: '🌙', label: 'Night Owl', color: AppTheme.accentBlue, unlocked: isNightWarrior, isDark: isDark),
+              _BadgeTile(emoji: '⚔️', label: 'Warrior', color: AppTheme.primaryPurple, unlocked: isTaskWarrior, isDark: isDark),
+              _BadgeTile(emoji: '🎯', label: 'Master', color: AppTheme.accentCyan, unlocked: isFocusMaster, isDark: isDark),
+              _BadgeTile(emoji: '📵', label: 'Zen Mode', color: AppTheme.accentGreen, unlocked: false, isDark: isDark),
+            ],
+          ),
         ),
       ],
     );
@@ -413,93 +345,63 @@ class _StreaksBadges extends StatelessWidget {
 class _BadgeTile extends StatelessWidget {
   final String emoji, label;
   final Color color;
-  final bool unlocked;
+  final bool unlocked, isDark;
 
-  const _BadgeTile({required this.emoji, required this.label, required this.color, required this.unlocked});
+  const _BadgeTile({required this.emoji, required this.label, required this.color, required this.unlocked, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.only(right: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: unlocked ? color.withOpacity(0.12) : AppTheme.bgDarkElevated.withOpacity(0.5),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: unlocked ? color.withOpacity(0.3) : AppTheme.borderColor),
-        ),
-        child: Column(
-          children: [
-            ColorFiltered(
-              colorFilter: unlocked ? const ColorFilter.mode(Colors.transparent, BlendMode.dst) : const ColorFilter.mode(Colors.grey, BlendMode.saturation),
-              child: Text(emoji, style: const TextStyle(fontSize: 26)),
-            ),
-            const SizedBox(height: 4),
-            Text(label,
-                style: TextStyle(
-                    color: unlocked ? color : AppTheme.textMuted,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600),
-                textAlign: TextAlign.center),
-          ],
-        ),
+    return Container(
+      width: 90,
+      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: unlocked ? color.withOpacity(0.1) : (isDark ? AppTheme.bgDarkElevated : Colors.black.withOpacity(0.03)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: unlocked ? color.withOpacity(0.3) : Colors.transparent),
+      ),
+      child: Column(
+        children: [
+          Opacity(
+            opacity: unlocked ? 1.0 : 0.3,
+            child: Text(emoji, style: const TextStyle(fontSize: 28)),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: TextStyle(color: unlocked ? color : AppTheme.textMuted, fontSize: 11, fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }
-}
-
-class _Badge {
-  final String emoji, label;
-  final Color color;
-  const _Badge(this.emoji, this.label, this.color);
 }
 
 class _InsightCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String title, body;
+  final bool isDark;
 
-  const _InsightCard({
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.body,
-  });
+  const _InsightCard({required this.icon, required this.color, required this.title, required this.body, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(16),
+        color: isDark ? color.withOpacity(0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(width: 12),
+          Icon(icon, color: color, size: 24),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14)),
+                Text(title, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w700, fontSize: 16)),
                 const SizedBox(height: 4),
-                Text(body,
-                    style: const TextStyle(
-                        color: AppTheme.textSecondary, fontSize: 12)),
+                Text(body, style: TextStyle(color: isDark ? AppTheme.textSecondary : Colors.black54, fontSize: 13)),
               ],
             ),
           ),
@@ -512,40 +414,26 @@ class _InsightCard extends StatelessWidget {
 class _DistractionTile extends StatelessWidget {
   final String pkg;
   final int mins;
-  const _DistractionTile({required this.pkg, required this.mins});
+  final bool isDark;
+  const _DistractionTile({required this.pkg, required this.mins, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
     final name = pkg.split('.').last.toUpperCase();
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.bgDarkCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.borderColor),
+        color: isDark ? AppTheme.bgDarkCard : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: isDark ? AppTheme.borderColor : Colors.black.withOpacity(0.05)),
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppTheme.accentRed.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.warning_amber_rounded, color: AppTheme.accentRed, size: 18),
-          ),
+          Icon(Icons.warning_amber_rounded, color: AppTheme.accentRed, size: 20),
           const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
-                Text(pkg, style: const TextStyle(color: AppTheme.textMuted, fontSize: 10)),
-              ],
-            ),
-          ),
-          Text('$mins mins', style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold)),
+          Expanded(child: Text(name, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w600))),
+          Text('$mins m', style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w800)),
         ],
       ),
     );
