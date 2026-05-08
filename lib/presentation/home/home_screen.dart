@@ -685,9 +685,9 @@ class _ReminderCard extends StatelessWidget {
 // ──────────────────────────────────────────────────────────────────────────────
 // Quick Actions Grid
 // ──────────────────────────────────────────────────────────────────────────────
-class _QuickActionsGrid extends StatelessWidget {
+class _QuickActionsGrid extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final actions = [
       _QAction(
           icon: Icons.add_alarm_rounded,
@@ -709,6 +709,27 @@ class _QuickActionsGrid extends StatelessWidget {
           label: 'Emergency',
           color: AppTheme.accentRed,
           onTap: () => context.push('/reminders/create')),
+      _QAction(
+          icon: Icons.not_interested_rounded,
+          label: 'Anti-Scroll',
+          color: AppTheme.accentCyan,
+          isActive: ref.watch(settingsProvider).noScrollEnabled,
+          onTap: () async {
+            final current = ref.read(settingsProvider).noScrollEnabled;
+            final newVal = !current;
+            ref.read(settingsProvider.notifier).updateSetting('noScrollEnabled', newVal);
+            await PlatformChannel.setNoScrollMode(newVal);
+            
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(newVal ? 'Anti-Scroll ACTIVATED! 🚫📜' : 'Anti-Scroll Deactivated'),
+                  backgroundColor: newVal ? AppTheme.accentCyan : AppTheme.bgDarkCard,
+                  duration: const Duration(seconds: 2),
+                )
+              );
+            }
+          }),
     ];
 
     return GridView.count(
@@ -727,12 +748,15 @@ class _QAction {
   final IconData icon;
   final String label;
   final Color color;
+  final bool isActive;
   final VoidCallback onTap;
-  const _QAction(
-      {required this.icon,
-      required this.label,
-      required this.color,
-      required this.onTap});
+  const _QAction({
+    required this.icon,
+    required this.label,
+    required this.color,
+    this.isActive = false,
+    required this.onTap,
+  });
 }
 
 class _QuickActionCard extends StatelessWidget {
@@ -746,29 +770,50 @@ class _QuickActionCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: action.color.withOpacity(0.08),
+          color: action.isActive ? action.color.withOpacity(0.2) : action.color.withOpacity(0.08),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: action.color.withOpacity(0.2)),
+          border: Border.all(
+            color: action.isActive ? action.color : action.color.withOpacity(0.2),
+            width: action.isActive ? 1.5 : 1.0,
+          ),
+          boxShadow: action.isActive ? [
+            BoxShadow(color: action.color.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 2))
+          ] : [],
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: action.color.withOpacity(0.15),
+                color: action.isActive ? action.color : action.color.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(action.icon, color: action.color, size: 18),
+              child: Icon(
+                action.icon, 
+                color: action.isActive ? Colors.white : action.color, 
+                size: 18
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                action.label,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    action.label,
+                    style: TextStyle(
+                      color: action.isActive ? Colors.white : AppTheme.textPrimary,
+                      fontSize: 13,
+                      fontWeight: action.isActive ? FontWeight.w800 : FontWeight.w500,
+                    ),
+                  ),
+                  if (action.isActive)
+                    const Text(
+                      'ACTIVE',
+                      style: TextStyle(color: Colors.white70, fontSize: 8, fontWeight: FontWeight.bold),
+                    ),
+                ],
               ),
             ),
           ],

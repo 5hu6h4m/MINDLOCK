@@ -180,6 +180,16 @@ class MainActivity : FlutterActivity() {
                         }
                     }
 
+                    "setNoScrollMode" -> {
+                        val enabled = call.argument<Boolean>("enabled") ?: false
+                        MindLockAccessibilityService.isNoScrollActive = enabled
+                        result.success(true)
+                    }
+
+                    "isNoScrollActive" -> {
+                        result.success(MindLockAccessibilityService.isNoScrollActive)
+                    }
+
                     "scheduleNativeReminder" -> {
                         val id = call.argument<Int>("id") ?: 0
                         val title = call.argument<String>("title") ?: ""

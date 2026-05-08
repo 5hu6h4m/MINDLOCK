@@ -10,6 +10,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/providers/theme_provider.dart';
 import 'data/local/hive_boxes.dart';
+import 'core/providers/settings_provider.dart';
 import 'services/notification_service.dart';
 import 'services/alarm_service.dart';
 import 'services/mission_service.dart';
@@ -70,6 +71,10 @@ class MindLockApp extends ConsumerWidget {
 
     // Listen for native alarms
     _setupNativeListener(ref, router);
+
+    // Initial Sync for No Scroll
+    final settings = ref.read(settingsProvider);
+    PlatformChannel.setNoScrollMode(settings.noScrollEnabled);
 
     return MaterialApp.router(
       title: 'MINDLOCK',

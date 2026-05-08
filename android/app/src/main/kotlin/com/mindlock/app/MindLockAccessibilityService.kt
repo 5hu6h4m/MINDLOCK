@@ -4,11 +4,12 @@ import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.view.accessibility.AccessibilityEvent
 import android.util.Log
+import android.widget.Toast
 
 class MindLockAccessibilityService : AccessibilityService() {
 
     companion object {
-        // Entertainment app packages to monitor
+        // Entertainment app packages to monitor for scrolling/blocking
         val ENTERTAINMENT_PACKAGES = setOf(
             "com.google.android.youtube",
             "com.instagram.android",
@@ -17,6 +18,7 @@ class MindLockAccessibilityService : AccessibilityService() {
             "com.reddit.frontpage",
             "com.facebook.android",
             "com.twitter.android",
+            "com.facebook.katana"
         )
         
         // Critical apps that should NEVER be blocked
@@ -38,6 +40,10 @@ class MindLockAccessibilityService : AccessibilityService() {
         var isMissionActive = false
         var missionBlockedPackages = setOf<String>()
         var missionIntensity = "medium" // light, medium, hardcore, strict
+
+        // No Scroll State
+        var isNoScrollActive = false
+        private var lastScrollToastTime = 0L
     }
 
     override fun onServiceConnected() {
@@ -47,40 +53,58 @@ class MindLockAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
-
+        if (event == null) return
+        
         val packageName = event.packageName?.toString() ?: return
 
-        // 1. Deep Sleep Blocking (Block EVERYTHING except SAFE_PACKAGES)
-        if (isDeepSleepActive) {
-            if (packageName !in SAFE_PACKAGES) {
-                performGlobalAction(GLOBAL_ACTION_HOME)
-                Log.d("MINDLOCK", "Sleep Blocking: $packageName")
+        // --- 1. No Scroll Logic (Blocks scrolling in entertainment apps) ---
+        if (isNoScrollActive && event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
+            if (packageName in ENTERTAINMENT_PACKAGES) {
+                // If they scroll, we force them BACK to stop the feed consumption
+                performGlobalAction(GLOBAL_ACTION_BACK)
+                
+                val now = System.currentTimeMillis()
+                if (now - lastScrollToastTime > 3000) {
+                    Toast.makeText(this, "NO SCROLL MODE ACTIVE! 🚫", Toast.LENGTH_SHORT).show()
+                    lastScrollToastTime = now
+                }
                 return
             }
         }
 
-        // 2. Mission Mode Blocking Logic
-        if (isMissionActive) {
-            // Never block safe apps
-            if (packageName in SAFE_PACKAGES) return
-
-            // If STRICT mission mode with empty package list, block ALL entertainment
-            val shouldBlock = if (missionIntensity == "STRICT" && missionBlockedPackages.isEmpty()) {
-                packageName in ENTERTAINMENT_PACKAGES
-            } else {
-                packageName in missionBlockedPackages
+        // --- 2. Window State Logic (App Blocking) ---
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            // 2.1 Deep Sleep Blocking (Block EVERYTHING except SAFE_PACKAGES)
+            if (isDeepSleepActive) {
+                if (packageName !in SAFE_PACKAGES) {
+                    performGlobalAction(GLOBAL_ACTION_HOME)
+                    Log.d("MINDLOCK", "Sleep Blocking: $packageName")
+                    return
+                }
             }
 
-            if (shouldBlock && missionIntensity != "light") {
-                performGlobalAction(GLOBAL_ACTION_HOME)
-                
-                // Send broadcast to MainActivity -> Flutter
-                val intent = Intent("com.MindLock.MISSION_ESCAPE_ATTEMPT")
-                intent.putExtra("package", packageName)
-                sendBroadcast(intent)
-                Log.d("MINDLOCK", "Mission Blocking: $packageName")
-                return
+            // 2.2 Mission Mode Blocking Logic
+            if (isMissionActive) {
+                // Never block safe apps
+                if (packageName in SAFE_PACKAGES) return
+
+                // If STRICT mission mode with empty package list, block ALL entertainment
+                val shouldBlock = if (missionIntensity == "STRICT" && missionBlockedPackages.isEmpty()) {
+                    packageName in ENTERTAINMENT_PACKAGES
+                } else {
+                    packageName in missionBlockedPackages
+                }
+
+                if (shouldBlock && missionIntensity != "light") {
+                    performGlobalAction(GLOBAL_ACTION_HOME)
+                    
+                    // Send broadcast to MainActivity -> Flutter
+                    val intent = Intent("com.MindLock.MISSION_ESCAPE_ATTEMPT")
+                    intent.putExtra("package", packageName)
+                    sendBroadcast(intent)
+                    Log.d("MINDLOCK", "Mission Blocking: $packageName")
+                    return
+                }
             }
         }
     }

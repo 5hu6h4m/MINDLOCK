@@ -273,4 +273,22 @@ class PlatformChannel {
       return null;
     }
   }
+
+  /// Toggle Anti-Scroll mode
+  static Future<bool> setNoScrollMode(bool enabled) async {
+    try {
+      return await _channel.invokeMethod<bool>('setNoScrollMode', {'enabled': enabled}) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Check if Anti-Scroll mode is active
+  static Future<bool> isNoScrollActive() async {
+    try {
+      return await _channel.invokeMethod<bool>('isNoScrollActive') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
 }

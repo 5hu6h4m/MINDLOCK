@@ -8,6 +8,7 @@ class AppSettings {
   final bool disciplineScoreEnabled;
   final bool aiSuggestionsEnabled;
   final bool streakTrackingEnabled;
+  final bool noScrollEnabled;
 
   AppSettings({
     this.soundEnabled = true,
@@ -16,6 +17,7 @@ class AppSettings {
     this.disciplineScoreEnabled = true,
     this.aiSuggestionsEnabled = true,
     this.streakTrackingEnabled = true,
+    this.noScrollEnabled = false,
   });
 
   AppSettings copyWith({
@@ -25,6 +27,7 @@ class AppSettings {
     bool? disciplineScoreEnabled,
     bool? aiSuggestionsEnabled,
     bool? streakTrackingEnabled,
+    bool? noScrollEnabled,
   }) {
     return AppSettings(
       soundEnabled: soundEnabled ?? this.soundEnabled,
@@ -33,6 +36,7 @@ class AppSettings {
       disciplineScoreEnabled: disciplineScoreEnabled ?? this.disciplineScoreEnabled,
       aiSuggestionsEnabled: aiSuggestionsEnabled ?? this.aiSuggestionsEnabled,
       streakTrackingEnabled: streakTrackingEnabled ?? this.streakTrackingEnabled,
+      noScrollEnabled: noScrollEnabled ?? this.noScrollEnabled,
     );
   }
 }
@@ -55,6 +59,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
       disciplineScoreEnabled: box.get('disciplineScoreEnabled', defaultValue: true),
       aiSuggestionsEnabled: box.get('aiSuggestionsEnabled', defaultValue: true),
       streakTrackingEnabled: box.get('streakTrackingEnabled', defaultValue: true),
+      noScrollEnabled: box.get('noScrollEnabled', defaultValue: false),
     );
   }
 
@@ -80,6 +85,9 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
         break;
       case 'streakTrackingEnabled':
         state = state.copyWith(streakTrackingEnabled: value);
+        break;
+      case 'noScrollEnabled':
+        state = state.copyWith(noScrollEnabled: value);
         break;
     }
   }
