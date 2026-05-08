@@ -8,6 +8,7 @@ import android.app.Service
 import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import android.util.Log
 
 class ForegroundReminderService : Service() {
 
@@ -21,17 +22,23 @@ class ForegroundReminderService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification())
+        try {
+            createNotificationChannel()
+            startForeground(NOTIFICATION_ID, buildNotification())
+        } catch (e: Exception) {
+            Log.e("MINDLOCK", "Service creation failed: ${e.message}")
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action
         if (action == "START_SLEEP_TIMER") {
             val seconds = intent.getIntExtra("seconds", 0)
-            sleepTimerEndTime = System.currentTimeMillis() + (seconds * 1000)
-            isSleepTimerActive = true
-            startTimerCheck()
+            if (seconds > 0) {
+                sleepTimerEndTime = System.currentTimeMillis() + (seconds * 1000)
+                isSleepTimerActive = true
+                startTimerCheck()
+            }
         } else if (action == "STOP_SLEEP_TIMER") {
             isSleepTimerActive = false
         }
@@ -56,7 +63,7 @@ class ForegroundReminderService : Service() {
                 val seconds = (remainingMs / 1000) % 60
                 val timeStr = String.format("%02d:%02d", minutes, seconds)
                 
-                updateNotification("Brutal Sleep Timer", "Killing all in $timeStr")
+                updateNotification("Brutal Sleep Mode", "Shutting down in $timeStr")
                 handler.postDelayed(this, 1000)
             }
         }
@@ -79,20 +86,22 @@ class ForegroundReminderService : Service() {
             // 3. Clear Screen / Go Home
             MindLockAccessibilityService.instance?.navigateHome()
             
-            // 4. Force Lock / Screen Off (Wait 500ms for Home to settle)
+            // 4. Force Lock (Safely)
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                 MainActivity.instance?.lockDevice()
-            }, 500)
+            }, 800)
 
-            updateNotification("Sleep Mode Active", "Device locked. Sleep well.")
+            updateNotification("Goodnight", "MINDLOCK secured your sleep.")
         } catch (e: Exception) {
-            android.util.Log.e("MINDLOCK", "Sleep kill failed: ${e.message}")
+            Log.e("MINDLOCK", "Sleep kill execution failed: ${e.message}")
         }
     }
 
     private fun updateNotification(title: String, text: String) {
-        val nm = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as NotificationManager
-        nm.notify(NOTIFICATION_ID, buildNotification(title, text))
+        try {
+            val nm = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.notify(NOTIFICATION_ID, buildNotification(title, text))
+        } catch (e: Exception) {}
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

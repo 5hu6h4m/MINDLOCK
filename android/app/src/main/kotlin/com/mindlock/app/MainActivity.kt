@@ -40,7 +40,19 @@ class MainActivity : FlutterActivity() {
     fun lockDevice() {
         try {
             val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-            dpm.lockNow()
+            val adminComponent = ComponentName(this, MindLockAdminReceiver::class.java)
+            if (dpm.isAdminActive(adminComponent)) {
+                dpm.lockNow()
+            } else {
+                Log.w("MINDLOCK", "Device Admin not active. Cannot lock.")
+                // Launch settings to enable admin
+                val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                    putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
+                    putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "MindLock needs this to lock your screen during sleep sessions.")
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                startActivity(intent)
+            }
         } catch (e: Exception) {
             Log.e("MINDLOCK", "Lock failed: ${e.message}")
         }
@@ -86,8 +98,7 @@ class MainActivity : FlutterActivity() {
         flutterChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
                     "lockScreen" -> {
-                        val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-                        dpm.lockNow()
+                        lockDevice()
                         result.success(null)
                     }
 
@@ -102,8 +113,10 @@ class MainActivity : FlutterActivity() {
 
                     "pauseMedia" -> {
                         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                        val event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
-                        audioManager.dispatchMediaKeyEvent(event)
+                        val eventDown = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
+                        val eventUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
+                        audioManager.dispatchMediaKeyEvent(eventDown)
+                        audioManager.dispatchMediaKeyEvent(eventUp)
                         result.success(null)
                     }
 
@@ -121,20 +134,6 @@ class MainActivity : FlutterActivity() {
                         MindLockAccessibilityService.isDeepSleepActive = enabled
                         if (enabled) {
                             MindLockAccessibilityService.instance?.navigateHome()
-                        }
-                        result.success(true)
-                    }
-
-                    "startSleepTimer" -> {
-                        val minutes = call.argument<Int>("minutes") ?: 0
-                        val intent = Intent(this, ForegroundReminderService::class.java).apply {
-                            action = "START_SLEEP_TIMER"
-                            putExtra("seconds", minutes * 60)
-                        }
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            startForegroundService(intent)
-                        } else {
-                            startService(intent)
                         }
                         result.success(true)
                     }
@@ -204,18 +203,6 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     }
 
-                    "cancelNativeReminder" -> {
-                        val id = call.argument<Int>("id") ?: 0
-                        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-                        val intent = Intent(this, ReminderReceiver::class.java)
-                        val pendingIntent = PendingIntent.getBroadcast(
-                            this, id, intent,
-                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                        )
-                        alarmManager.cancel(pendingIntent)
-                        result.success(true)
-                    }
-
                 else -> result.notImplemented()
             }
         }
@@ -223,11 +210,15 @@ class MainActivity : FlutterActivity() {
 
     override fun onStart() {
         super.onStart()
-        registerReceiver(missionEscapeReceiver, IntentFilter("com.MindLock.MISSION_ESCAPE_ATTEMPT"))
+        try {
+            registerReceiver(missionEscapeReceiver, IntentFilter("com.MindLock.MISSION_ESCAPE_ATTEMPT"))
+        } catch (e: Exception) {}
     }
 
     override fun onStop() {
         super.onStop()
-        unregisterReceiver(missionEscapeReceiver)
+        try {
+            unregisterReceiver(missionEscapeReceiver)
+        } catch (e: Exception) {}
     }
 }
