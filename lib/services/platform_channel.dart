@@ -156,20 +156,6 @@ class PlatformChannel {
     }
   }
 
-  /// Pause current media playback
-  static Future<void> pauseMedia() async {
-    try {
-      await _channel.invokeMethod('pauseMedia');
-    } catch (_) {}
-  }
-
-  /// Lock device screen
-  static Future<void> lockScreen() async {
-    try {
-      await _channel.invokeMethod('lockScreen');
-    } catch (_) {}
-  }
-
   /// Open external URL
   static Future<void> openUrl(String url) async {
     try {

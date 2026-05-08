@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mindlock/core/constants/enums.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/local/hive_boxes.dart';
 import '../../data/local/models/user_stats_model.dart';
@@ -101,13 +102,13 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     final mission = MissionModel(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: 'Focus Session',
-      category: 'Focus',
+      categoryIndex: MissionCategory.study.index,
       startTime: DateTime.now().subtract(Duration(minutes: _selectedMinutes)),
       endTime: DateTime.now(),
       durationMinutes: _selectedMinutes,
-      intensity: 'light',
+      intensityIndex: MissionIntensity.light.index,
       isCompleted: true,
-      focusPointsGained: points,
+      focusPointsEarned: points,
     );
     HiveBoxes.missions.add(mission);
     // Show completion dialog

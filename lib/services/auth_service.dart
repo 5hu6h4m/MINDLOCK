@@ -8,16 +8,27 @@ final authServiceProvider = Provider<AuthService>((ref) {
 });
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  FirebaseAuth? _auth;
   final FirestoreService _firestore = FirestoreService();
 
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  AuthService() {
+    try {
+      _auth = FirebaseAuth.instance;
+    } catch (e) {
+      // Firebase not initialized
+    }
+  }
 
-  User? get currentUser => _auth.currentUser;
+  bool get isAvailable => _auth != null;
+
+  Stream<User?> get authStateChanges => _auth?.authStateChanges() ?? const Stream.empty();
+
+  User? get currentUser => _auth?.currentUser;
 
   Future<void> signInAnonymously() async {
+    if (_auth == null) return;
     try {
-      await _auth.signInAnonymously();
+      await _auth!.signInAnonymously();
     } catch (e) {
       // Handle error
     }
@@ -34,6 +45,6 @@ class AuthService {
   }
 
   Future<void> signOut() async {
-    await _auth.signOut();
+    await _auth?.signOut();
   }
 }

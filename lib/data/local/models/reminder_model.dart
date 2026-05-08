@@ -1,5 +1,5 @@
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:MindLock/core/constants/enums.dart';
+import 'package:mindlock/core/constants/enums.dart';
 
 part 'reminder_model.g.dart';
 

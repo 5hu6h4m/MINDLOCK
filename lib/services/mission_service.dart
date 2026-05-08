@@ -24,7 +24,7 @@ class MissionService {
     if (!isOverlayActive) {
       await FlutterOverlayWindow.showOverlay(
         enableDrag: false,
-        flag: OverlayFlag.focusThrough,
+        flag: OverlayFlag.defaultFlag,
         alignment: OverlayAlignment.center,
         visibility: NotificationVisibility.visibilityPublic,
         positionGravity: PositionGravity.none,

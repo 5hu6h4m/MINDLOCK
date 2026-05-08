@@ -415,6 +415,8 @@ class _StreaksBadges extends StatelessWidget {
           ),
         );
       }).toList(),
+        ),
+      ],
     );
   }
 }

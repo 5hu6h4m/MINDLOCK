@@ -59,34 +59,62 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 20),
 
           // ── Cloud Backup ──────────────────────────────────────────────────
-          StreamBuilder<User?>(
-            stream: ref.watch(authServiceProvider).authStateChanges,
-            builder: (context, snapshot) {
-              final user = snapshot.data;
-              return _SettingsSection(
-                title: 'Cloud Account',
-                icon: Icons.cloud_done_rounded,
-                color: AppTheme.accentCyan,
-                children: [
-                  if (user == null)
-                    _NavSetting(
-                      label: 'Sign in for Cloud Backup',
-                      trailing: 'Not Linked',
-                      onTap: () => ref.read(authServiceProvider).signInAnonymously(),
-                    )
-                  else
-                    ListTile(
-                      leading: const Icon(Icons.account_circle_rounded, color: AppTheme.accentCyan),
-                      title: Text(user.isAnonymous ? 'Guest User' : user.email ?? 'User'),
-                      subtitle: const Text('Last synced: Just now', style: TextStyle(fontSize: 11)),
-                      trailing: TextButton(
-                        onPressed: () => ref.read(authServiceProvider).signOut(),
-                        child: const Text('Logout', style: TextStyle(color: AppTheme.accentRed, fontSize: 12)),
+          _SettingsSection(
+            title: 'Cloud Account',
+            icon: Icons.cloud_done_rounded,
+            color: AppTheme.accentCyan,
+            children: [
+              if (!ref.read(authServiceProvider).isAvailable)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  margin: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentRed.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.accentRed.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: AppTheme.accentRed, size: 32),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Firebase Not Configured',
+                        style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 14),
                       ),
-                    ),
-                ],
-              );
-            },
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Cloud sync requires google-services.json. Please add it to your project to enable this feature.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                StreamBuilder<User?>(
+                  stream: ref.watch(authServiceProvider).authStateChanges,
+                  builder: (context, snapshot) {
+                    final user = snapshot.data;
+                    if (user == null) {
+                      return _NavSetting(
+                        label: 'Sign in for Cloud Backup',
+                        trailing: 'Not Linked',
+                        onTap: () => ref.read(authServiceProvider).signInAnonymously(),
+                      );
+                    } else {
+                      return ListTile(
+                        leading: const Icon(Icons.account_circle_rounded, color: AppTheme.accentCyan),
+                        title: Text(user.isAnonymous ? 'Guest User' : user.email ?? 'User'),
+                        subtitle: const Text('Last synced: Just now', style: TextStyle(fontSize: 11)),
+                        trailing: TextButton(
+                          onPressed: () => ref.read(authServiceProvider).signOut(),
+                          child: const Text('Logout', style: TextStyle(color: AppTheme.accentRed, fontSize: 12)),
+                        ),
+                      );
+                    }
+                  },
+                ),
+            ],
           ),
           const SizedBox(height: 20),
 

@@ -24,13 +24,14 @@ class UserStatsModelAdapter extends TypeAdapter<UserStatsModel> {
       missionsFailed: fields[4] as int,
       unlockedBadges: (fields[5] as List).cast<String>(),
       lastMissionDate: fields[6] as DateTime?,
+      lastUpdateDate: fields[7] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserStatsModel obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.totalFocusPoints)
       ..writeByte(1)
@@ -44,7 +45,9 @@ class UserStatsModelAdapter extends TypeAdapter<UserStatsModel> {
       ..writeByte(5)
       ..write(obj.unlockedBadges)
       ..writeByte(6)
-      ..write(obj.lastMissionDate);
+      ..write(obj.lastMissionDate)
+      ..writeByte(7)
+      ..write(obj.lastUpdateDate);
   }
 
   @override

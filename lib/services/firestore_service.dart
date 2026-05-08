@@ -5,16 +5,25 @@ import '../data/local/models/reminder_model.dart';
 import '../data/local/hive_boxes.dart';
 
 class FirestoreService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  FirebaseFirestore? _db;
+  FirebaseAuth? _auth;
 
-  String? get uid => _auth.currentUser?.uid;
+  FirestoreService() {
+    try {
+      _db = FirebaseFirestore.instance;
+      _auth = FirebaseAuth.instance;
+    } catch (e) {
+      // Firebase not initialized
+    }
+  }
+
+  String? get uid => _auth?.currentUser?.uid;
 
   // ── User Data Sync ────────────────────────────────────────────────────────
 
   Future<void> uploadUserStats(UserStatsModel stats) async {
-    if (uid == null) return;
-    await _db.collection('users').doc(uid).set({
+    if (uid == null || _db == null) return;
+    await _db!.collection('users').doc(uid).set({
       'stats': {
         'totalFocusPoints': stats.totalFocusPoints,
         'missionsCompleted': stats.missionsCompleted,
@@ -27,12 +36,12 @@ class FirestoreService {
   }
 
   Future<void> syncReminders() async {
-    if (uid == null) return;
+    if (uid == null || _db == null) return;
     final reminders = HiveBoxes.reminders.values.toList();
-    final batch = _db.batch();
+    final batch = _db!.batch();
     
     for (var r in reminders) {
-      final docRef = _db.collection('users').doc(uid).collection('reminders').doc(r.id);
+      final docRef = _db!.collection('users').doc(uid).collection('reminders').doc(r.id);
       batch.set(docRef, {
         'title': r.title,
         'description': r.description,
@@ -47,8 +56,8 @@ class FirestoreService {
   // ── Co-Focus Rooms ─────────────────────────────────────────────────────────
 
   Future<void> createRoom(String roomCode, int duration) async {
-    if (uid == null) return;
-    await _db.collection('rooms').doc(roomCode).set({
+    if (uid == null || _db == null) return;
+    await _db!.collection('rooms').doc(roomCode).set({
       'hostId': uid,
       'status': 'active',
       'startTime': FieldValue.serverTimestamp(),
@@ -58,17 +67,18 @@ class FirestoreService {
   }
 
   Future<void> joinRoom(String roomCode) async {
-    if (uid == null) return;
-    await _db.collection('rooms').doc(roomCode).update({
+    if (uid == null || _db == null) return;
+    await _db!.collection('rooms').doc(roomCode).update({
       'members': FieldValue.arrayUnion([uid]),
     });
   }
 
-  Stream<DocumentSnapshot> watchRoom(String roomCode) {
-    return _db.collection('rooms').doc(roomCode).snapshots();
+  Stream<DocumentSnapshot>? watchRoom(String roomCode) {
+    return _db?.collection('rooms').doc(roomCode).snapshots();
   }
 
   Future<void> updateRoomStatus(String roomCode, String status) async {
-    await _db.collection('rooms').doc(roomCode).update({'status': status});
+    if (_db == null) return;
+    await _db!.collection('rooms').doc(roomCode).update({'status': status});
   }
 }

@@ -182,9 +182,9 @@ class MainActivity : FlutterActivity() {
                     }
 
                     "pauseMedia" -> {
-                        val audioManager = getSystemService(Context.AUDIO_SERVICE) as android.app.AudioManager
-                        val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE)
-                        val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE)
+                        val audioManager = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                        val eventDown = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE)
+                        val eventUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE)
                         audioManager.dispatchMediaKeyEvent(eventDown)
                         audioManager.dispatchMediaKeyEvent(eventUp)
                         result.success(true)
