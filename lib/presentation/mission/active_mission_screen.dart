@@ -132,13 +132,16 @@ class _ActiveMissionScreenState extends State<ActiveMissionScreen>
     // Check if room exists, if not create it
     await _firestore.createRoom(widget.roomCode, widget.durationMinutes);
     
-    _roomSubscription = _firestore.watchRoom(widget.roomCode).listen((doc) {
-      if (!doc.exists) return;
-      final status = doc.get('status');
-      if (status == 'failed' && !_isCompleted) {
-        _handleBuddyFailed();
-      }
-    });
+    final roomStream = _firestore.watchRoom(widget.roomCode);
+    if (roomStream != null) {
+      _roomSubscription = roomStream.listen((doc) {
+        if (!doc.exists) return;
+        final status = doc.get('status');
+        if (status == 'failed' && !_isCompleted) {
+          _handleBuddyFailed();
+        }
+      });
+    }
   }
 
   void _handleBuddyFailed() {
