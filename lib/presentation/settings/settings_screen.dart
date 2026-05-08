@@ -271,7 +271,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               _NavSetting(
                 label: 'Contact Support / Feedback',
-                onTap: () => PlatformChannel.openEmail('support@mindlock.app', 'MINDLOCK Feedback v1.0.0'),
+                onTap: () => PlatformChannel.openEmail('shubhamja9863@gmail.com', 'MINDLOCK Feedback v1.0.0'),
               ),
               _NavSetting(
                 label: 'Privacy Policy',
@@ -283,6 +283,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 40),
+          const Center(
+            child: Column(
+              children: [
+                Text('By 5hu6h4m',
+                    style: TextStyle(
+                        color: AppTheme.textMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 2)),
+                SizedBox(height: 4),
+                Text('MindLock System v1.0.0',
+                    style: TextStyle(color: AppTheme.textMuted, fontSize: 10)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 40),
         ],
       ),
     );
