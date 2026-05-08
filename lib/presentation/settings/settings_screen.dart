@@ -96,16 +96,63 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   builder: (context, snapshot) {
                     final user = snapshot.data;
                     if (user == null) {
-                      return _NavSetting(
-                        label: 'Sign in for Cloud Backup',
-                        trailing: 'Not Linked',
-                        onTap: () => ref.read(authServiceProvider).signInAnonymously(),
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Column(
+                          children: [
+                            _NavSetting(
+                              label: 'Continue with Google',
+                              trailing: 'Secure',
+                              onTap: () async {
+                                try {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Opening Google Sign-in...'), duration: Duration(seconds: 1)),
+                                  );
+                                  await ref.read(authServiceProvider).signInWithGoogle();
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Google Login Failed: ${e.toString()}'),
+                                        backgroundColor: AppTheme.accentRed,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                            const Divider(color: AppTheme.borderColor, height: 1),
+                            _NavSetting(
+                              label: 'Sign in as Guest',
+                              trailing: 'Quick',
+                              onTap: () async {
+                                try {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Connecting as Guest...'), duration: Duration(seconds: 1)),
+                                  );
+                                  await ref.read(authServiceProvider).signInAnonymously();
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Guest Login Failed: ${e.toString()}'),
+                                        backgroundColor: AppTheme.accentRed,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                          ],
+                        ),
                       );
                     } else {
                       return ListTile(
-                        leading: const Icon(Icons.account_circle_rounded, color: AppTheme.accentCyan),
-                        title: Text(user.isAnonymous ? 'Guest User' : user.email ?? 'User'),
-                        subtitle: const Text('Last synced: Just now', style: TextStyle(fontSize: 11)),
+                        leading: user.photoURL != null 
+                          ? CircleAvatar(backgroundImage: NetworkImage(user.photoURL!), radius: 14)
+                          : const Icon(Icons.account_circle_rounded, color: AppTheme.accentCyan),
+                        title: Text(user.isAnonymous ? 'Guest User' : user.displayName ?? user.email ?? 'User'),
+                        subtitle: Text(user.isAnonymous ? 'Tap to link email' : 'Account synced', style: const TextStyle(fontSize: 11)),
                         trailing: TextButton(
                           onPressed: () => ref.read(authServiceProvider).signOut(),
                           child: const Text('Logout', style: TextStyle(color: AppTheme.accentRed, fontSize: 12)),

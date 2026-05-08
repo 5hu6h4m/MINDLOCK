@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/local/hive_boxes.dart';
 import 'firestore_service.dart';
@@ -9,6 +10,7 @@ final authServiceProvider = Provider<AuthService>((ref) {
 
 class AuthService {
   FirebaseAuth? _auth;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FirestoreService _firestore = FirestoreService();
 
   AuthService() {
@@ -30,7 +32,25 @@ class AuthService {
     try {
       await _auth!.signInAnonymously();
     } catch (e) {
-      // Handle error
+      rethrow;
+    }
+  }
+  
+  Future<void> signInWithGoogle() async {
+    if (_auth == null) return;
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return;
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await _auth!.signInWithCredential(credential);
+    } catch (e) {
+      rethrow;
     }
   }
 
