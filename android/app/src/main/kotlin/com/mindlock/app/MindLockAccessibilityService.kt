@@ -20,7 +20,7 @@ import java.util.Locale
 class MindLockAccessibilityService : AccessibilityService() {
 
     companion object {
-        val BLOCK_KEYWORDS = setOf("youtube", "instagram", "tiktok", "snapchat", "facebook", "twitter", "reddit")
+        val BLOCK_KEYWORDS = setOf("youtube", "instagram", "tiktok", "snapchat", "facebook", "twitter", "reddit", "shorts", "reels", "trill")
         
         val BLOCKED_PACKAGES = setOf(
             "com.google.android.youtube",
@@ -94,10 +94,19 @@ class MindLockAccessibilityService : AccessibilityService() {
         stateReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 if (intent?.action == "com.mindlock.UPDATE_STATE") {
-                    isNoScrollActive = intent.getBooleanExtra("no_scroll_active", isNoScrollActive)
-                    isDeepSleepActive = intent.getBooleanExtra("deep_sleep_active", isDeepSleepActive)
-                    isMissionActive = intent.getBooleanExtra("mission_active", isMissionActive)
-                    isReflectionActive = intent.getBooleanExtra("reflection_active", isReflectionActive)
+                    if (intent.hasExtra("no_scroll_active")) {
+                        isNoScrollActive = intent.getBooleanExtra("no_scroll_active", false)
+                        Log.d("MindLock", "Sync: noScroll=$isNoScrollActive")
+                    }
+                    if (intent.hasExtra("deep_sleep_active")) {
+                        isDeepSleepActive = intent.getBooleanExtra("deep_sleep_active", false)
+                    }
+                    if (intent.hasExtra("mission_active")) {
+                        isMissionActive = intent.getBooleanExtra("mission_active", false)
+                    }
+                    if (intent.hasExtra("reflection_active")) {
+                        isReflectionActive = intent.getBooleanExtra("reflection_active", false)
+                    }
                 }
             }
         }
@@ -165,8 +174,8 @@ class MindLockAccessibilityService : AccessibilityService() {
         val mission = isMissionActive
 
         val isSafe = SAFE_PACKAGES.any { packageName.contains(it) }
-        val isEntertainment = BLOCKED_PACKAGES.contains(packageName) || 
-                             BLOCK_KEYWORDS.any { packageName.contains(it) }
+        val isEntertainment = BLOCKED_PACKAGES.any { packageName.contains(it) } || 
+                             BLOCK_KEYWORDS.any { packageName.lowercase().contains(it) }
 
         // 1. Deep Sleep / Reflection (Global Lockdown)
         if ((reflection || deepSleep) && !isSafe) {
@@ -186,8 +195,9 @@ class MindLockAccessibilityService : AccessibilityService() {
         }
 
         // 2. Anti-Scroll (Targeted Discipline)
-        if (noScroll && event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
+        if (isNoScrollActive && event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
             if (isEntertainment && !isSafe) {
+                Log.d("MindLock", "Scroll blocked for: $packageName")
                 vibratePattern() // Warn user
                 
                 // Nuclear Stop: Force Home to break the scroll dopamine loop
