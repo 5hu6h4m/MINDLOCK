@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+
 class AppSettings {
   final bool soundEnabled;
   final bool vibrationEnabled;
@@ -9,6 +12,9 @@ class AppSettings {
   final bool aiSuggestionsEnabled;
   final bool streakTrackingEnabled;
   final bool noScrollEnabled;
+  final bool awarenessPulseEnabled;
+  final int reflectionHour;
+  final int reflectionMinute;
 
   AppSettings({
     this.soundEnabled = true,
@@ -18,6 +24,9 @@ class AppSettings {
     this.aiSuggestionsEnabled = true,
     this.streakTrackingEnabled = true,
     this.noScrollEnabled = false,
+    this.awarenessPulseEnabled = false,
+    this.reflectionHour = 22,
+    this.reflectionMinute = 30,
   });
 
   AppSettings copyWith({
@@ -28,6 +37,9 @@ class AppSettings {
     bool? aiSuggestionsEnabled,
     bool? streakTrackingEnabled,
     bool? noScrollEnabled,
+    bool? awarenessPulseEnabled,
+    int? reflectionHour,
+    int? reflectionMinute,
   }) {
     return AppSettings(
       soundEnabled: soundEnabled ?? this.soundEnabled,
@@ -37,6 +49,9 @@ class AppSettings {
       aiSuggestionsEnabled: aiSuggestionsEnabled ?? this.aiSuggestionsEnabled,
       streakTrackingEnabled: streakTrackingEnabled ?? this.streakTrackingEnabled,
       noScrollEnabled: noScrollEnabled ?? this.noScrollEnabled,
+      awarenessPulseEnabled: awarenessPulseEnabled ?? this.awarenessPulseEnabled,
+      reflectionHour: reflectionHour ?? this.reflectionHour,
+      reflectionMinute: reflectionMinute ?? this.reflectionMinute,
     );
   }
 }
@@ -60,7 +75,17 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
       aiSuggestionsEnabled: box.get('aiSuggestionsEnabled', defaultValue: true),
       streakTrackingEnabled: box.get('streakTrackingEnabled', defaultValue: true),
       noScrollEnabled: box.get('noScrollEnabled', defaultValue: false),
+      awarenessPulseEnabled: box.get('awarenessPulseEnabled', defaultValue: false),
+      reflectionHour: box.get('reflectionHour', defaultValue: 22),
+      reflectionMinute: box.get('reflectionMinute', defaultValue: 30),
     );
+  }
+
+  void updateReflectionTime(int hour, int minute) {
+    final box = Hive.box('settings');
+    box.put('reflectionHour', hour);
+    box.put('reflectionMinute', minute);
+    state = state.copyWith(reflectionHour: hour, reflectionMinute: minute);
   }
 
   void updateSetting(String key, bool value) {
@@ -88,6 +113,9 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
         break;
       case 'noScrollEnabled':
         state = state.copyWith(noScrollEnabled: value);
+        break;
+      case 'awarenessPulseEnabled':
+        state = state.copyWith(awarenessPulseEnabled: value);
         break;
     }
   }

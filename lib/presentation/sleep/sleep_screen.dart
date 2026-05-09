@@ -192,13 +192,45 @@ class _SleepScreenState extends ConsumerState<SleepScreen> with TickerProviderSt
                   ),
                   const SizedBox(height: 60),
                   
+                  // Manual Selector
+                  Column(
+                    children: [
+                      Text(
+                        '${_selectedSeconds ~/ 60} MINUTES',
+                        style: const TextStyle(color: AppTheme.primaryPurple, fontSize: 16, fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 8),
+                      SliderTheme(
+                        data: SliderThemeData(
+                          activeTrackColor: AppTheme.primaryPurple,
+                          inactiveTrackColor: Colors.white.withOpacity(0.05),
+                          thumbColor: Colors.white,
+                          overlayColor: AppTheme.primaryPurple.withOpacity(0.2),
+                          trackHeight: 4,
+                        ),
+                        child: Slider(
+                          value: (_selectedSeconds / 60).clamp(1.0, 120.0),
+                          min: 1,
+                          max: 120,
+                          divisions: 119,
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedSeconds = (val.toInt() * 60);
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 40),
                     child: Wrap(
-                      spacing: 20,
-                      runSpacing: 20,
+                      spacing: 12,
+                      runSpacing: 12,
                       alignment: WrapAlignment.center,
-                      children: _presets.map((p) {
+                      children: _presets.take(4).map((p) {
                         final isSelected = p['seconds'] == _selectedSeconds;
                         return GestureDetector(
                           onTap: () => setState(() {
@@ -206,21 +238,19 @@ class _SleepScreenState extends ConsumerState<SleepScreen> with TickerProviderSt
                           }),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 300),
-                            width: 75,
-                            height: 75,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
                               color: isSelected ? AppTheme.primaryPurple : Colors.white.withOpacity(0.05),
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: isSelected ? AppTheme.primaryPurple : Colors.white10,
                               ),
                             ),
-                            alignment: Alignment.center,
                             child: Text(
                               p['label'] as String,
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 18,
+                                fontSize: 14,
                                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w400,
                               ),
                             ),

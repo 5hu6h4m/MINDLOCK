@@ -94,4 +94,28 @@ class ReminderModel extends HiveObject {
       autoRescheduleMinutes: autoRescheduleMinutes ?? this.autoRescheduleMinutes,
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'dateTime': dateTime.toIso8601String(),
+      'priorityIndex': priorityIndex,
+      'repeatIntervalMinutes': repeatIntervalMinutes,
+      'repeatCount': repeatCount,
+      'remainingRepeats': remainingRepeats,
+      'isFullScreenMode': isFullScreenMode,
+      'isStrictMode': isStrictMode,
+      'strictTypeIndex': strictTypeIndex,
+      'isCompleted': isCompleted,
+      'isPersistent': isPersistent,
+      'vibrationIntensity': vibrationIntensity,
+      'createdAt': createdAt.toIso8601String(),
+      'completedAt': completedAt?.toIso8601String(),
+      'isIgnored': isIgnored,
+      'snoozeCount': snoozeCount,
+      'autoRescheduleMinutes': autoRescheduleMinutes,
+    };
+  }
 }

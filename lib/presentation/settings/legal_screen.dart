@@ -28,22 +28,41 @@ class LegalScreen extends StatelessWidget {
 
 class PrivacyPolicy {
   static const String content = '''
-MINDLOCK Privacy Policy
+MindLock Privacy Policy
 Last Updated: May 2026
 
-1. Information We Collect:
-MINDLOCK collects app usage statistics, reminders, and focus points. This data is used to provide discipline scores and sync your progress.
+1. Introduction
+MindLock is committed to protecting your privacy. This policy explains how we handle your data.
 
-2. Usage Data:
-We use Android UsageStats API to monitor app usage during missions. This data never leaves your device unless you enable Cloud Sync.
+2. Accessibility Service (CRITICAL)
+MindLock uses the Android Accessibility Service to:
+- Monitor which application is in the foreground.
+- Detect scrolling behavior in specific "distracting" apps.
+- Restrict or close apps according to your "Mission Mode" or "Anti-Scroll" settings.
 
-3. Cloud Sync:
-If you sign in, your data is stored securely on Google Firebase.
+DISCLOSURE: The Accessibility Service is used ONLY for the core functionality of blocking apps and enforcing discipline. We DO NOT:
+- Collect any personal or sensitive user data.
+- Monitor your keystrokes or read your messages.
+- Share any data with third parties.
+- Use your data for advertising.
 
-4. Permissions:
-- Accessibility: Used for app monitoring.
-- DND: Used for focus mode.
-- Overlay: Used for reminder alerts.
+3. Device Administrator
+We use Device Administrator permissions to lock the screen during "Deep Sleep" sessions to prevent late-night phone usage.
+
+4. Usage Data
+We use the Android UsageStats API to calculate your discipline score. This data is processed locally on your device.
+
+5. Cloud Sync
+If you choose to sign in, your progress, streaks, and reminders are stored securely on Google Firebase. You can delete this data at any time.
+
+6. Permissions Summary
+- Accessibility: App blocking & Anti-Scroll.
+- Device Admin: Screen locking.
+- Overlay: Showing alerts over other apps.
+- Usage Stats: Calculating productivity scores.
+
+7. Contact
+For any privacy concerns, contact: shubhamja9863@gmail.com
   ''';
 }
 

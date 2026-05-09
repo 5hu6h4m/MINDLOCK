@@ -8,6 +8,7 @@ class PlatformChannel {
 
   static Function(String packageName)? onEscapeAttempt;
   static Function(Map<String, dynamic> data)? onNativeAlarm;
+  static Function(String route)? onNativeNavigation;
 
   static void initializeListener() {
     _channel.setMethodCallHandler((call) async {
@@ -20,6 +21,11 @@ class PlatformChannel {
         final data = Map<String, dynamic>.from(call.arguments);
         if (onNativeAlarm != null) {
           onNativeAlarm!(data);
+        }
+      } else if (call.method == 'onNativeNavigation') {
+        final route = call.arguments['route'] as String?;
+        if (route != null && onNativeNavigation != null) {
+          onNativeNavigation!(route);
         }
       }
     });
@@ -65,10 +71,10 @@ class PlatformChannel {
   }
 
   /// Get app usage stats in minutes for today
-  static Future<Map<String, int>> getUsageStats() async {
+  static Future<Map<String, int>> getUsageStats({String period = 'day'}) async {
     final Map<dynamic, dynamic>? stats =
-        await _channel.invokeMethod('getUsageStats');
-    return stats?.map((key, value) => MapEntry(key.toString(), value as int)) ??
+        await _channel.invokeMethod('getUsageStats', {'period': period});
+    return stats?.map((key, value) => MapEntry(key.toString(), (value as num).toInt())) ??
         {};
   }
 
@@ -142,6 +148,22 @@ class PlatformChannel {
     }
   }
 
+  /// Check if usage stats permission is granted
+  static Future<bool> checkUsageStatsPermission() async {
+    try {
+      return await _channel.invokeMethod<bool>('checkUsageStatsPermission') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Open usage stats permission settings
+  static Future<void> openUsageStatsSettings() async {
+    try {
+      await _channel.invokeMethod('openUsageStatsSettings');
+    } catch (_) {}
+  }
+
   /// Open overlay permission settings
   static Future<void> openOverlaySettings() async {
     try {
@@ -180,11 +202,12 @@ class PlatformChannel {
   }
 
   /// Start Mission Mode blocking
-  static Future<void> startMission(List<String> blockedApps, String intensity) async {
+  static Future<void> startMission(List<String> blockedApps, String intensity, int seconds) async {
     try {
       await _channel.invokeMethod('startMission', {
         'blockedApps': blockedApps,
         'intensity': intensity,
+        'seconds': seconds,
       });
     } catch (_) {}
   }
@@ -196,6 +219,28 @@ class PlatformChannel {
     } catch (_) {}
   }
 
+  /// Get remaining mission time in seconds
+  static Future<int> getRemainingMissionTime() async {
+    try {
+      return await _channel.invokeMethod<int>('getRemainingMissionTime') ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Get active mission details
+  static Future<Map<String, dynamic>?> getActiveMissionDetails() async {
+    try {
+      final Map<dynamic, dynamic>? result = await _channel.invokeMethod('getActiveMissionDetails');
+      if (result != null) {
+        return Map<String, dynamic>.from(result);
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Toggle Do Not Disturb mode
   static Future<bool> setDNDMode(bool enabled) async {
     try {
@@ -203,6 +248,13 @@ class PlatformChannel {
     } catch (_) {
       return false;
     }
+  }
+
+  /// Open DND (Notification Policy) settings
+  static Future<void> openDNDSettings() async {
+    try {
+      await _channel.invokeMethod('openDNDSettings');
+    } catch (_) {}
   }
 
   static Future<bool> setDeepSleepMode(bool enabled) async {
@@ -266,6 +318,30 @@ class PlatformChannel {
   }
 
   /// Get the APK file path of the current app
+  static Future<bool> setAwarenessMode(bool enabled) async {
+    try {
+      final bool success = await _channel.invokeMethod('setAwarenessMode', {'enabled': enabled});
+      return success;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  static Future<void> scheduleDailyReflection({int hour = 22, int minute = 30}) async {
+    await _channel.invokeMethod('scheduleDailyReflection', {
+      'hour': hour,
+      'minute': minute,
+    });
+  }
+
+  static Future<void> stopReflectionService() async {
+    await _channel.invokeMethod('stopReflectionService');
+  }
+
+  static Future<void> snoozeDailyReflection() async {
+    await _channel.invokeMethod('snoozeDailyReflection');
+  }
+
   static Future<String?> getAppApkPath() async {
     try {
       return await _channel.invokeMethod<String>('getAppApkPath');
@@ -290,5 +366,12 @@ class PlatformChannel {
     } catch (_) {
       return false;
     }
+  }
+
+  /// Manually trigger the 10:30 PM lockdown behavior
+  static Future<void> triggerNightlyLockdown() async {
+    try {
+      await _channel.invokeMethod('triggerNightlyLockdown');
+    } catch (_) {}
   }
 }

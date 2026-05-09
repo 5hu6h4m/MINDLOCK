@@ -2,130 +2,239 @@ package com.mindlock.app
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
+import android.content.Context
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
 import android.view.accessibility.AccessibilityEvent
 import android.util.Log
 import android.widget.Toast
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MindLockAccessibilityService : AccessibilityService() {
 
     companion object {
-        // Entertainment app packages to monitor for scrolling/blocking
-        val ENTERTAINMENT_PACKAGES = setOf(
+        val BLOCK_KEYWORDS = setOf("youtube", "instagram", "tiktok", "snapchat", "facebook", "twitter", "reddit")
+        
+        val BLOCKED_PACKAGES = setOf(
             "com.google.android.youtube",
             "com.instagram.android",
-            "com.zhiliaoapp.musically",  // TikTok
             "com.snapchat.android",
-            "com.reddit.frontpage",
-            "com.facebook.android",
+            "com.facebook.katana",
+            "com.zhiliaoapp.musically",
             "com.twitter.android",
-            "com.facebook.katana"
+            "com.reddit.frontpage"
         )
-        
-        // Critical apps that should NEVER be blocked
+
         val SAFE_PACKAGES = setOf(
-            "com.android.dialer",
-            "com.google.android.dialer",
-            "com.android.contacts",
-            "com.google.android.contacts",
+            "com.mindlock.app",
+            "com.android.launcher",
+            "com.oppo.launcher",
+            "com.coloros.launcher",
+            "com.realme.launcher",
+            "com.sec.android.app.launcher",
+            "com.google.android.apps.nexuslauncher",
             "com.android.settings",
-            "com.mindlock.app", // Always allow ourselves
+            "com.android.systemui",
+            "com.android.dialer",
+            "com.google.android.inputmethod",
+            "com.samsung.android.honeyboard",
+            "com.microsoft.emmx",
+            "inputmethod",
+            "keyboard"
         )
 
         var instance: MindLockAccessibilityService? = null
-        
-        // Deep Sleep State
         var isDeepSleepActive = false
-
-        // Mission Mode State
         var isMissionActive = false
         var missionBlockedPackages = setOf<String>()
-        var missionIntensity = "medium" // light, medium, hardcore, strict
-
-        // No Scroll State
+        var missionIntensity = "medium"
         var isNoScrollActive = false
-        private var lastScrollToastTime = 0L
+        var isReflectionActive = false
+
+        fun getInternalUsageStats(context: Context): Map<String, Long> {
+            val prefs = context.getSharedPreferences("mindlock_usage", Context.MODE_PRIVATE)
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val result = mutableMapOf<String, Long>()
+            val all = prefs.all
+            for ((key, value) in all) {
+                if (key.startsWith(today) && value is Long) {
+                    val pkg = key.substringAfter("${today}_")
+                    result[pkg] = value / 60000 // Convert to minutes
+                }
+            }
+            return result
+        }
     }
+
+    private var currentPackage: String? = null
+    private var startTime: Long = 0
+    private var stateReceiver: BroadcastReceiver? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        Log.d("MINDLOCK", "Accessibility Service Connected")
+        
+        // Show a persistent notification to keep the service alive
+        createNotificationChannel()
+        val notification = android.app.Notification.Builder(this, "accessibility_service")
+            .setContentTitle("MindLock Shield Active")
+            .setContentText("Protecting your focus...")
+            .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
+            .build()
+        // Note: Accessibility Services don't strictly need startForeground, 
+        // but it helps some Chinese ROMs keep it alive.
+        
+        stateReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == "com.mindlock.UPDATE_STATE") {
+                    isNoScrollActive = intent.getBooleanExtra("no_scroll_active", isNoScrollActive)
+                    isDeepSleepActive = intent.getBooleanExtra("deep_sleep_active", isDeepSleepActive)
+                    isMissionActive = intent.getBooleanExtra("mission_active", isMissionActive)
+                    isReflectionActive = intent.getBooleanExtra("reflection_active", isReflectionActive)
+                }
+            }
+        }
+        val filter = IntentFilter("com.mindlock.UPDATE_STATE")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(stateReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(stateReceiver, filter)
+        }
+        
+        vibratePattern() // Initial vibration to signal connection
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = android.app.NotificationChannel(
+                "accessibility_service",
+                "MindLock System Service",
+                android.app.NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = getSystemService(android.app.NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
+        val packageName = event.packageName?.toString()?.lowercase() ?: ""
         
-        val packageName = event.packageName?.toString() ?: return
+        // --- SAFE LIST (NEVER BLOCK) ---
+        // During reflection or deep sleep, we ONLY allow MindLock and SystemUI.
+        // Even the Launcher is blocked to prevent bypassing.
+        val isReflectionOrDeepSleep = isReflectionActive || isDeepSleepActive
+        val isCriticalApp = packageName == "com.mindlock.app" || packageName == "com.android.systemui"
+        val isSystemApp = SAFE_PACKAGES.any { packageName.contains(it) }
 
-        // --- 1. No Scroll Logic (Blocks scrolling in entertainment apps) ---
-        if (isNoScrollActive && event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
-            if (packageName in ENTERTAINMENT_PACKAGES) {
-                // If they scroll, we force them BACK to stop the feed consumption
-                performGlobalAction(GLOBAL_ACTION_BACK)
-                
-                val now = System.currentTimeMillis()
-                if (now - lastScrollToastTime > 3000) {
-                    Toast.makeText(this, "NO SCROLL MODE ACTIVE! 🚫", Toast.LENGTH_SHORT).show()
-                    lastScrollToastTime = now
+        if (packageName == "") return
+        if (isCriticalApp) return
+        if (isSystemApp && !isReflectionOrDeepSleep) return
+
+        // --- TRACK USAGE ---
+        if (packageName != currentPackage) {
+            if (currentPackage != null && startTime > 0) {
+                val durationMs = System.currentTimeMillis() - startTime
+                if (durationMs > 1000) recordUsage(currentPackage!!, durationMs)
+            }
+            currentPackage = packageName
+            startTime = System.currentTimeMillis()
+        }
+
+        // --- ENFORCE BLOCKING ---
+        val prefs = getSharedPreferences("mindlock_prefs", Context.MODE_PRIVATE)
+        val noScroll = prefs.getBoolean("no_scroll_active", false)
+        val deepSleep = prefs.getBoolean("deep_sleep_active", false)
+        val reflection = prefs.getBoolean("is_reflection_active", false)
+        val mission = prefs.getBoolean("mission_active", false)
+
+        val isSafe = SAFE_PACKAGES.any { packageName.contains(it) }
+        val isEntertainment = BLOCKED_PACKAGES.contains(packageName) || 
+                             BLOCK_KEYWORDS.any { packageName.contains(it) }
+
+        // 1. Deep Sleep / Reflection (Global Lockdown)
+        if ((reflection || deepSleep) && !isSafe) {
+            vibratePattern()
+            
+            if (reflection) {
+                // FORCE REDIRECT: Take them back to the summary screen
+                val launchIntent = Intent(this, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    putExtra("route", "/reflection/overlay")
                 }
+                startActivity(launchIntent)
+            } else {
+                performGlobalAction(GLOBAL_ACTION_HOME)
+            }
+            return
+        }
+
+        // 2. Anti-Scroll (Targeted Discipline)
+        if (noScroll && event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
+            if (isEntertainment && !isSafe) {
+                vibratePattern() // Warn user
+                
+                // Nuclear Stop: Force Home to break the scroll dopamine loop
+                performGlobalAction(GLOBAL_ACTION_HOME)
                 return
             }
         }
 
-        // --- 2. Window State Logic (App Blocking) ---
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            // 2.1 Deep Sleep Blocking (Block EVERYTHING except SAFE_PACKAGES)
-            if (isDeepSleepActive) {
-                if (packageName !in SAFE_PACKAGES) {
-                    performGlobalAction(GLOBAL_ACTION_HOME)
-                    Log.d("MINDLOCK", "Sleep Blocking: $packageName")
-                    return
-                }
+        // 3. Mission Mode
+        if (mission && packageName != "com.mindlock.app" && packageName != "com.android.systemui") {
+            val intensity = prefs.getString("mission_intensity", "medium")
+            val blockedApps = prefs.getStringSet("mission_blocked_apps", emptySet()) ?: emptySet()
+
+            val shouldBlock = if (intensity.equals("hardcore", ignoreCase = true) && blockedApps.isEmpty()) {
+                isEntertainment
+            } else {
+                packageName in blockedApps
             }
 
-            // 2.2 Mission Mode Blocking Logic
-            if (isMissionActive) {
-                // Never block safe apps
-                if (packageName in SAFE_PACKAGES) return
-
-                // If STRICT mission mode with empty package list, block ALL entertainment
-                val shouldBlock = if (missionIntensity == "STRICT" && missionBlockedPackages.isEmpty()) {
-                    packageName in ENTERTAINMENT_PACKAGES
-                } else {
-                    packageName in missionBlockedPackages
-                }
-
-                if (shouldBlock && missionIntensity != "light") {
-                    performGlobalAction(GLOBAL_ACTION_HOME)
-                    
-                    // Send broadcast to MainActivity -> Flutter
-                    val intent = Intent("com.MindLock.MISSION_ESCAPE_ATTEMPT")
-                    intent.putExtra("package", packageName)
-                    sendBroadcast(intent)
-                    Log.d("MINDLOCK", "Mission Blocking: $packageName")
-                    return
-                }
+            if (shouldBlock && !intensity.equals("light", ignoreCase = true)) {
+                vibratePattern()
+                performGlobalAction(GLOBAL_ACTION_HOME)
+                val intent = Intent("com.MindLock.MISSION_ESCAPE_ATTEMPT")
+                intent.putExtra("package", packageName)
+                sendBroadcast(intent)
             }
         }
     }
 
-    override fun onInterrupt() {
-        instance = null
+    private fun vibratePattern() {
+        try {
+            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                // Pulse pattern: 0ms delay, 100ms on, 100ms off
+                val effect = android.os.VibrationEffect.createWaveform(longArrayOf(0, 100, 100), -1)
+                vibrator.vibrate(effect)
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(100)
+            }
+        } catch (e: Exception) {}
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        instance = null
+    private fun recordUsage(pkg: String, durationMs: Long) {
+        val prefs = getSharedPreferences("mindlock_usage", Context.MODE_PRIVATE)
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val key = "${today}_${pkg}"
+        prefs.edit().putLong(key, prefs.getLong(key, 0L) + durationMs).apply()
     }
 
-    fun triggerSleepMode() {
-        performGlobalAction(GLOBAL_ACTION_HOME)
-        android.os.Handler(mainLooper).postDelayed({
-            performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
-        }, 1000)
+    override fun onInterrupt() { instance = null }
+    override fun onDestroy() { 
+        instance = null 
+        try {
+            if (stateReceiver != null) unregisterReceiver(stateReceiver)
+        } catch (e: Exception) {}
     }
-
-    fun navigateHome() {
-        performGlobalAction(GLOBAL_ACTION_HOME)
-    }
+    fun navigateHome() { performGlobalAction(GLOBAL_ACTION_HOME) }
 }

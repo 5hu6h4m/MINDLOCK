@@ -36,13 +36,14 @@ class ReminderModelAdapter extends TypeAdapter<ReminderModel> {
       isIgnored: fields[16] as bool,
       snoozeCount: fields[17] as int,
       autoRescheduleMinutes: fields[18] as int,
+      tone: fields[19] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, ReminderModel obj) {
     writer
-      ..writeByte(19)
+      ..writeByte(20)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -80,7 +81,9 @@ class ReminderModelAdapter extends TypeAdapter<ReminderModel> {
       ..writeByte(17)
       ..write(obj.snoozeCount)
       ..writeByte(18)
-      ..write(obj.autoRescheduleMinutes);
+      ..write(obj.autoRescheduleMinutes)
+      ..writeByte(19)
+      ..write(obj.tone);
   }
 
   @override

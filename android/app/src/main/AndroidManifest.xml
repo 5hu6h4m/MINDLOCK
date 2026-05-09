@@ -62,6 +62,11 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <service
+            android:name=".MissionForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <!-- ═══════════════════════════════════════ ACCESSIBILITY SERVICE -->
         <service
             android:name=".MindLockAccessibilityService"
@@ -124,6 +129,10 @@
                 <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
             </intent-filter>
         </receiver>
+
+        <!-- Reflection Components -->
+        <receiver android:name=".ReflectionAlarmReceiver" android:exported="false" />
+        <service android:name=".ReflectionForegroundService" android:exported="false" android:foregroundServiceType="dataSync" />
 
     </application>
 

@@ -42,7 +42,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       emoji: '⚙️',
       title: 'Setup Permissions',
       subtitle:
-          'MINDLOCK needs a few permissions to work its magic. Tap below to enable them.',
+          'MINDLOCK needs these permissions to enforce your discipline. Please enable all of them for the best experience.',
       color: AppTheme.accentAmber,
       isPermissionPage: true,
     ),
@@ -149,7 +149,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   ),
                   child: Text(
                     _currentPage == _pages.length - 1
-                        ? "Let's Go! 🚀"
+                        ? "I'M READY! 🚀"
                         : 'Continue',
                     style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w700),
@@ -235,73 +235,90 @@ class _OnboardingPageWidgetState extends State<_OnboardingPageWidget>
         scale: _scaleAnim,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Emoji orb
-              Container(
-                width: 140,
-                height: 140,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      widget.page.color.withOpacity(0.3),
-                      widget.page.color.withOpacity(0.05),
-                    ],
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(height: 40),
+                // Emoji orb
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        widget.page.color.withOpacity(0.3),
+                        widget.page.color.withOpacity(0.05),
+                      ],
+                    ),
+                    border: Border.all(
+                        color: widget.page.color.withOpacity(0.3), width: 1.5),
                   ),
-                  border: Border.all(
-                      color: widget.page.color.withOpacity(0.3), width: 1.5),
+                  child: Center(
+                    child: Text(widget.page.emoji,
+                        style: const TextStyle(fontSize: 48)),
+                  ),
                 ),
-                child: Center(
-                  child: Text(widget.page.emoji,
-                      style: const TextStyle(fontSize: 56)),
-                ),
-              ),
-              const SizedBox(height: 40),
-              Text(
-                widget.page.title,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                widget.page.subtitle,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 15,
-                  height: 1.6,
-                ),
-                textAlign: TextAlign.center,
-              ),
-
-              if (widget.page.isPermissionPage) ...[
                 const SizedBox(height: 32),
-                _PermissionButton(
-                  icon: Icons.layers_rounded,
-                  label: 'Enable Overlay Permission',
-                  onTap: PlatformChannel.openOverlaySettings,
+                Text(
+                  widget.page.title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 10),
-                _PermissionButton(
-                  icon: Icons.accessibility_new_rounded,
-                  label: 'Enable Accessibility Service',
-                  onTap: PlatformChannel.openAccessibilitySettings,
+                const SizedBox(height: 12),
+                Text(
+                  widget.page.subtitle,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 10),
-                _PermissionButton(
-                  icon: Icons.battery_charging_full_rounded,
-                  label: 'Disable Battery Optimization',
-                  onTap:
-                      PlatformChannel.requestBatteryOptimizationExemption,
-                ),
+    
+                if (widget.page.isPermissionPage) ...[
+                  const SizedBox(height: 24),
+                  _PermissionButton(
+                    icon: Icons.layers_rounded,
+                    label: '1. Overlay (Always on Top)',
+                    onTap: PlatformChannel.openOverlaySettings,
+                  ),
+                  const SizedBox(height: 10),
+                  _PermissionButton(
+                    icon: Icons.accessibility_new_rounded,
+                    label: '2. Accessibility (Blocking)',
+                    onTap: PlatformChannel.openAccessibilitySettings,
+                  ),
+                  const SizedBox(height: 10),
+                  _PermissionButton(
+                    icon: Icons.analytics_rounded,
+                    label: '3. Usage Stats (Tracking)',
+                    onTap: PlatformChannel.openUsageStatsSettings,
+                  ),
+                  const SizedBox(height: 10),
+                  _PermissionButton(
+                    icon: Icons.notifications_active_rounded,
+                    label: '4. Notifications (Alarms)',
+                    onTap: () async {
+                      await PlatformChannel.setDNDMode(true); // Triggers DND/Notif permission
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _PermissionButton(
+                    icon: Icons.battery_charging_full_rounded,
+                    label: '5. Battery (Background)',
+                    onTap: PlatformChannel.requestBatteryOptimizationExemption,
+                  ),
+                  const SizedBox(height: 20),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -340,7 +357,7 @@ class _PermissionButton extends StatelessWidget {
                   style: const TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 13,
-                      fontWeight: FontWeight.w500)),
+                      fontWeight: FontWeight.w600)),
             ),
             const Icon(Icons.arrow_forward_ios_rounded,
                 color: AppTheme.textMuted, size: 14),

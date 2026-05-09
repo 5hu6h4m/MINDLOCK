@@ -11,12 +11,21 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.KeyEvent
+import android.widget.Toast
 import android.app.AlarmManager
 import android.app.PendingIntent
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import android.util.Log
+import android.net.Uri
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.view.WindowManager
+import android.app.usage.UsageStatsManager
+import androidx.work.*
+import java.util.*
+import java.util.concurrent.TimeUnit
 
 class MainActivity : FlutterActivity() {
 
@@ -99,6 +108,8 @@ class MainActivity : FlutterActivity() {
                 "priority" to priority
             )
             flutterChannel?.invokeMethod("onNativeAlarm", data)
+        } else if (route != null) {
+            flutterChannel?.invokeMethod("onNativeNavigation", mapOf("route" to route))
         }
     }
 
@@ -140,12 +151,273 @@ class MainActivity : FlutterActivity() {
                         }
                     }
 
+                    "isAccessibilityEnabled" -> {
+                        result.success(isAccessibilityServiceEnabled())
+                    }
+
+                    "openAccessibilitySettings" -> {
+                        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        startActivity(intent)
+                        result.success(null)
+                    }
+
+                    "hasOverlayPermission" -> {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            result.success(Settings.canDrawOverlays(this))
+                        } else {
+                            result.success(true)
+                        }
+                    }
+
+                    "openOverlaySettings" -> {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
+                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            startActivity(intent)
+                        }
+                        result.success(null)
+                    }
+
+                    "checkExactAlarmPermission" -> {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                            result.success(alarmManager.canScheduleExactAlarms())
+                        } else {
+                            result.success(true)
+                        }
+                    }
+
+                    "openExactAlarmSettings" -> {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName"))
+                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            startActivity(intent)
+                        }
+                        result.success(null)
+                    }
+
+                    "requestBatteryExemption" -> {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName"))
+                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            startActivity(intent)
+                        }
+                        result.success(null)
+                    }
+
+                    "startMission" -> {
+                        val blockedApps = call.argument<List<String>>("blockedApps")?.toSet() ?: emptySet()
+                        val intensity = call.argument<String>("intensity") ?: "medium"
+                        val seconds = call.argument<Int>("seconds") ?: 0
+                        
+                        val prefs = getSharedPreferences("mindlock_prefs", Context.MODE_PRIVATE)
+                        val endTime = System.currentTimeMillis() + (seconds * 1000)
+                        Log.d("MINDLOCK", "Starting mission: $seconds seconds, EndTime: $endTime")
+                        
+                        prefs.edit().putBoolean("mission_active", true)
+                                    .putLong("mission_end_time", endTime)
+                                    .putStringSet("mission_blocked_apps", blockedApps)
+                                    .putString("mission_intensity", intensity)
+                                    .commit() // Use commit() for synchronous saving
+                        
+                        MindLockAccessibilityService.isMissionActive = true
+                        MindLockAccessibilityService.missionBlockedPackages = blockedApps
+                        MindLockAccessibilityService.missionIntensity = intensity
+
+                        // SECURE BROADCAST UPDATE
+                        val intentUpdate = Intent("com.mindlock.UPDATE_STATE")
+                        intentUpdate.putExtra("mission_active", true)
+                        intentUpdate.setPackage(packageName)
+                        sendBroadcast(intentUpdate)
+
+                        // Start Foreground Timer
+                        val intent = Intent(this, MissionForegroundService::class.java).apply {
+                            action = "START_MISSION_TIMER"
+                            putExtra("seconds", seconds)
+                        }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            startForegroundService(intent)
+                        } else {
+                            startService(intent)
+                        }
+
+                        result.success(true)
+                    }
+
+                    "stopMission" -> {
+                        val prefs = getSharedPreferences("mindlock_prefs", Context.MODE_PRIVATE)
+                        prefs.edit().putBoolean("mission_active", false).apply()
+                        
+                        MindLockAccessibilityService.isMissionActive = false
+                        MindLockAccessibilityService.missionBlockedPackages = emptySet()
+
+                        // SECURE BROADCAST UPDATE
+                        val intentUpdate = Intent("com.mindlock.UPDATE_STATE")
+                        intentUpdate.putExtra("mission_active", false)
+                        intentUpdate.setPackage(packageName)
+                        sendBroadcast(intentUpdate)
+
+                        // Stop Foreground Timer
+                        val intent = Intent(this, MissionForegroundService::class.java).apply {
+                            action = "STOP_MISSION_TIMER"
+                        }
+                        startService(intent)
+
+                        result.success(true)
+                    }
+
+                    "getRemainingMissionTime" -> {
+                        val prefs = getSharedPreferences("mindlock_prefs", Context.MODE_PRIVATE)
+                        val isActive = prefs.getBoolean("mission_active", false)
+                        val endTime = prefs.getLong("mission_end_time", 0L)
+                        val now = System.currentTimeMillis()
+                        
+                        Log.d("MINDLOCK", "getRemainingMissionTime: active=$isActive, end=$endTime, now=$now")
+                        
+                        if (isActive && endTime > now) {
+                            result.success((endTime - now) / 1000)
+                        } else {
+                            result.success(0L)
+                        }
+                    }
+
+                    "getActiveMissionDetails" -> {
+                        val prefs = getSharedPreferences("mindlock_prefs", Context.MODE_PRIVATE)
+                        val isActive = prefs.getBoolean("mission_active", false)
+                        if (isActive) {
+                            val intensity = prefs.getString("mission_intensity", "medium")
+                            val blockedApps = prefs.getStringSet("mission_blocked_apps", emptySet())?.toList() ?: emptyList()
+                            result.success(mapOf(
+                                "intensity" to intensity,
+                                "blockedApps" to blockedApps
+                            ))
+                        } else {
+                            result.success(null)
+                        }
+                    }
+
+                    "setDNDMode" -> {
+                        val enabled = call.argument<Boolean>("enabled") ?: false
+                        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            if (notificationManager.isNotificationPolicyAccessGranted) {
+                                try {
+                                    if (enabled) {
+                                        notificationManager.setInterruptionFilter(android.app.NotificationManager.INTERRUPTION_FILTER_NONE)
+                                        Toast.makeText(this, "Native DND: ON", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        notificationManager.setInterruptionFilter(android.app.NotificationManager.INTERRUPTION_FILTER_ALL)
+                                        Toast.makeText(this, "Native DND: OFF", Toast.LENGTH_SHORT).show()
+                                    }
+                                    result.success(true)
+                                } catch (e: Exception) {
+                                    Toast.makeText(this, "Native DND Failed: ${e.message}", Toast.LENGTH_LONG).show()
+                                    result.success(false)
+                                }
+                            } else {
+                                Toast.makeText(this, "Native DND: Permission Denied", Toast.LENGTH_SHORT).show()
+                                result.success(false)
+                            }
+                        } else {
+                            result.success(false)
+                        }
+                    }
+
+                    "openDNDSettings" -> {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            startActivity(intent)
+                        }
+                        result.success(null)
+                    }
+
+                    "vibrate" -> {
+                        val intensity = call.argument<Int>("intensity") ?: 1
+                        val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            val effect = when(intensity) {
+                                1 -> VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE)
+                                2 -> VibrationEffect.createOneShot(300, VibrationEffect.DEFAULT_AMPLITUDE)
+                                else -> VibrationEffect.createWaveform(longArrayOf(0, 100, 50, 100), -1)
+                            }
+                            vibrator.vibrate(effect)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            vibrator.vibrate(300)
+                        }
+                        result.success(null)
+                    }
+
+                    "wakeDevice" -> {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                            setShowWhenLocked(true)
+                            setTurnScreenOn(true)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        }
+                        result.success(null)
+                    }
+
+                    "openUrl" -> {
+                        val url = call.argument<String>("url") ?: ""
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        startActivity(intent)
+                        result.success(null)
+                    }
+
+                    "openEmail" -> {
+                        val recipient = call.argument<String>("recipient") ?: ""
+                        val subject = call.argument<String>("subject") ?: ""
+                        val intent = Intent(Intent.ACTION_SENDTO).apply {
+                            data = Uri.parse("mailto:")
+                            putExtra(Intent.EXTRA_EMAIL, arrayOf(recipient))
+                            putExtra(Intent.EXTRA_SUBJECT, subject)
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                        startActivity(intent)
+                        result.success(null)
+                    }
+
+                    "getAppApkPath" -> {
+                        result.success(applicationContext.packageCodePath)
+                    }
+
+                    "getUsageStats" -> {
+                        val period = call.argument<String>("period") ?: "day"
+                        val stats = getUsageStatsForPeriod(period)
+                        result.success(stats)
+                    }
+
+                    "checkUsageStatsPermission" -> {
+                        result.success(isUsageStatsPermissionGranted())
+                    }
+
+                    "openUsageStatsSettings" -> {
+                        openUsageStatsSettings()
+                        result.success(true)
+                    }
+
                     "setDeepSleepMode" -> {
                         val enabled = call.argument<Boolean>("enabled") ?: false
+                        val prefs = getSharedPreferences("mindlock_prefs", Context.MODE_PRIVATE)
+                        prefs.edit().putBoolean("deep_sleep_active", enabled).apply()
+                        
                         MindLockAccessibilityService.isDeepSleepActive = enabled
                         if (enabled) {
                             MindLockAccessibilityService.instance?.navigateHome()
                         }
+                        
+                        // SECURE BROADCAST UPDATE
+                        val intentUpdate = Intent("com.mindlock.UPDATE_STATE")
+                        intentUpdate.putExtra("deep_sleep_active", enabled)
+                        intentUpdate.setPackage(packageName)
+                        sendBroadcast(intentUpdate)
                         result.success(true)
                     }
 
@@ -182,12 +454,23 @@ class MainActivity : FlutterActivity() {
 
                     "setNoScrollMode" -> {
                         val enabled = call.argument<Boolean>("enabled") ?: false
+                        val prefs = getSharedPreferences("mindlock_prefs", Context.MODE_PRIVATE)
+                        prefs.edit().putBoolean("no_scroll_active", enabled).commit()
+                        
                         MindLockAccessibilityService.isNoScrollActive = enabled
+                        
+                        // SECURE BROADCAST UPDATE
+                        val intent = Intent("com.mindlock.UPDATE_STATE")
+                        intent.putExtra("no_scroll_active", enabled)
+                        intent.setPackage(packageName) // Crucial: Target our own package
+                        sendBroadcast(intent)
+                        
                         result.success(true)
                     }
 
                     "isNoScrollActive" -> {
-                        result.success(MindLockAccessibilityService.isNoScrollActive)
+                        val prefs = getSharedPreferences("mindlock_prefs", Context.MODE_PRIVATE)
+                        result.success(prefs.getBoolean("no_scroll_active", false))
                     }
 
                     "scheduleNativeReminder" -> {
@@ -224,15 +507,97 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     }
 
+                    "setAwarenessMode" -> {
+                        val enabled = call.argument<Boolean>("enabled") ?: false
+                        toggleAwarenessWork(enabled)
+                        result.success(true)
+                    }
+
+                    "scheduleDailyReflection" -> {
+                        val hour = call.argument<Int>("hour") ?: 22
+                        val minute = call.argument<Int>("minute") ?: 30
+                        scheduleDailyReflection(hour, minute)
+                        result.success(true)
+                    }
+
+                    "stopReflectionService" -> {
+                        val intent = Intent(this, ReflectionForegroundService::class.java)
+                        stopService(intent)
+                        result.success(true)
+                    }
+
+                    "snoozeDailyReflection" -> {
+                        snoozeDailyReflection()
+                        result.success(true)
+                    }
+
+                    "triggerNightlyLockdown" -> {
+                        val intent = Intent(this, ReflectionAlarmReceiver::class.java)
+                        sendBroadcast(intent)
+                        result.success(true)
+                    }
+
                 else -> result.notImplemented()
             }
+        }
+    }
+
+    private fun toggleAwarenessWork(enabled: Boolean) {
+        val workManager = androidx.work.WorkManager.getInstance(this)
+        if (enabled) {
+            val awarenessRequest = PeriodicWorkRequestBuilder<AwarenessWorker>(2, TimeUnit.HOURS)
+                .setConstraints(Constraints.Builder().setRequiresDeviceIdle(false).build())
+                .addTag("awareness_work")
+                .build()
+            WorkManager.getInstance(this).enqueueUniquePeriodicWork("awareness_work", ExistingPeriodicWorkPolicy.REPLACE, awarenessRequest)
+        } else {
+            workManager.cancelUniqueWork("awareness_work")
+        }
+    }
+
+    private fun scheduleDailyReflection(hour: Int, minute: Int) {
+        // Save to prefs for reboot recovery
+        val prefs = getSharedPreferences("mindlock_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putInt("reflection_hour", hour).putInt("reflection_minute", minute).apply()
+
+        ReflectionScheduler.schedule(this, hour, minute)
+    }
+
+    private fun snoozeDailyReflection() {
+        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(this, ReflectionAlarmReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            this, 1003, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val calendar = Calendar.getInstance().apply {
+            add(Calendar.MINUTE, 15) // Snooze for 15 minutes
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                calendar.timeInMillis,
+                pendingIntent
+            )
+        } else {
+            alarmManager.setExact(
+                AlarmManager.RTC_WAKEUP,
+                calendar.timeInMillis,
+                pendingIntent
+            )
         }
     }
 
     override fun onStart() {
         super.onStart()
         try {
-            registerReceiver(missionEscapeReceiver, IntentFilter("com.MindLock.MISSION_ESCAPE_ATTEMPT"))
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(missionEscapeReceiver, IntentFilter("com.MindLock.MISSION_ESCAPE_ATTEMPT"), Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                registerReceiver(missionEscapeReceiver, IntentFilter("com.MindLock.MISSION_ESCAPE_ATTEMPT"))
+            }
         } catch (e: Exception) {}
     }
 
@@ -241,5 +606,93 @@ class MainActivity : FlutterActivity() {
         try {
             unregisterReceiver(missionEscapeReceiver)
         } catch (e: Exception) {}
+    }
+
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        val expectedPackage = packageName
+        val expectedClass = MindLockAccessibilityService::class.java.canonicalName
+        val enabledServices = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+        
+        if (enabledServices.isNullOrEmpty()) return false
+        
+        val colonSplitter = android.text.TextUtils.SimpleStringSplitter(':')
+        colonSplitter.setString(enabledServices)
+        while (colonSplitter.hasNext()) {
+            val componentNameString = colonSplitter.next()
+            // Check if our service is in the string at all
+            if (componentNameString.contains(expectedPackage, ignoreCase = true) && 
+                componentNameString.contains("MindLockAccessibilityService", ignoreCase = true)) {
+                return true
+            }
+            
+            val enabledService = ComponentName.unflattenFromString(componentNameString)
+            if (enabledService != null && 
+                enabledService.packageName == expectedPackage && 
+                enabledService.className == expectedClass) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun getUsageStatsForPeriod(period: String): Map<String, Long> {
+        if (!isUsageStatsPermissionGranted()) {
+            return MindLockAccessibilityService.getInternalUsageStats(this)
+        }
+
+        val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val calendar = Calendar.getInstance()
+        
+        when (period) {
+            "day" -> {
+                calendar.set(Calendar.HOUR_OF_DAY, 0)
+                calendar.set(Calendar.MINUTE, 0)
+                calendar.set(Calendar.SECOND, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+            }
+            "week" -> calendar.add(Calendar.DAY_OF_YEAR, -7)
+            "month" -> calendar.add(Calendar.MONTH, -1)
+            "year" -> calendar.add(Calendar.YEAR, -1)
+        }
+        
+        val startTime = calendar.timeInMillis
+        val endTime = System.currentTimeMillis()
+
+        // Use queryAndAggregateUsageStats for more reliable long-term data
+        val stats = usageStatsManager.queryAndAggregateUsageStats(startTime, endTime)
+        val result = mutableMapOf<String, Long>()
+        
+        for (pkg in stats.keys) {
+            val usageStat = stats[pkg]
+            val totalTime = usageStat?.totalTimeInForeground ?: 0L
+            if (totalTime > 0) {
+                result[pkg] = totalTime / 60000 // Convert to minutes
+            }
+        }
+        return result
+    }
+
+    private fun isUsageStatsPermissionGranted(): Boolean {
+        val appOps = getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOps.unsafeCheckOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), packageName)
+        } else {
+            @Suppress("DEPRECATION")
+            appOps.checkOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), packageName)
+        }
+        return mode == android.app.AppOpsManager.MODE_ALLOWED
+    }
+
+    private fun openUsageStatsSettings() {
+        try {
+            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+            intent.data = Uri.fromParts("package", packageName, null)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            startActivity(intent)
+        } catch (e: Exception) {
+            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            startActivity(intent)
+        }
     }
 }

@@ -129,6 +129,55 @@ class AnalyticsScreen extends ConsumerWidget {
                     body: 'Your focus is ${(rate * 100).toStringAsFixed(0)}% stronger than last week.',
                     isDark: isDark,
                   ),
+                  const SizedBox(height: 40),
+                  // --- TEST BUTTON ---
+                  Container(
+                    width: double.infinity,
+                    height: 65,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      gradient: const LinearGradient(
+                        colors: [AppTheme.accentRed, Color(0xFFFF5252)],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.accentRed.withOpacity(0.3),
+                          blurRadius: 15,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: ElevatedButton(
+                      onPressed: () => PlatformChannel.triggerNightlyLockdown(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.lock_clock_rounded, color: Colors.white),
+                          SizedBox(width: 12),
+                          Text(
+                            'FORCE TEST NIGHTLY LOCK',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14,
+                              letterSpacing: 1.1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Triggers the 10:30 PM lockdown behavior for testing.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                  ),
                 ],
               ),
             ),

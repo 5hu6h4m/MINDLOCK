@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">MINDLOCK</string>
-    <string name="accessibility_service_description">MindLock uses Accessibility Service to monitor active apps and automatically close entertainment apps when your sleep timer ends. This helps enforce your digital discipline rules.</string>
+    <string name="app_name">MindLock: Digital Discipline</string>
+    <string name="accessibility_service_description">MindLock uses the Accessibility Service to monitor distracting applications and automatically restrict access when your discipline rules (like Mission Mode or Anti-Scroll) are active. This service is essential for enforcing your focus goals. We do not collect or share any personal data via this service.</string>
 </resources>

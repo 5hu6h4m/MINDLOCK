@@ -16,6 +16,7 @@ import 'services/alarm_service.dart';
 import 'services/mission_service.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'presentation/overlay/mission_penalty_overlay.dart';
+import 'services/data_sync_service.dart';
 
 @pragma('vm:entry-point')
 void overlayMain() {
@@ -65,6 +66,9 @@ class MindLockApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Initialize global services
     ref.read(missionServiceProvider).initialize();
+    
+    // Trigger Cloud Sync
+    Future.microtask(() => ref.read(dataSyncServiceProvider).fullSync());
 
     final router = ref.watch(appRouterProvider);
     final themeMode = ref.watch(themeProvider);
@@ -90,6 +94,11 @@ class MindLockApp extends ConsumerWidget {
     PlatformChannel.onNativeAlarm = (data) {
       debugPrint('MINDLOCK: Received native alarm in Flutter: $data');
       router.push('/reminders/alarm', extra: data);
+    };
+
+    PlatformChannel.onNativeNavigation = (route) {
+      debugPrint('MINDLOCK: Native requested navigation to: $route');
+      router.push(route);
     };
   }
 }

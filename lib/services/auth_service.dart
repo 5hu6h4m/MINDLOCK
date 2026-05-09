@@ -3,17 +3,19 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/local/hive_boxes.dart';
 import 'firestore_service.dart';
+import 'data_sync_service.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) {
-  return AuthService();
+  return AuthService(ref);
 });
 
 class AuthService {
+  final Ref _ref;
   FirebaseAuth? _auth;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FirestoreService _firestore = FirestoreService();
 
-  AuthService() {
+  AuthService(this._ref) {
     try {
       _auth = FirebaseAuth.instance;
     } catch (e) {
@@ -49,6 +51,9 @@ class AuthService {
       );
 
       await _auth!.signInWithCredential(credential);
+      
+      // Trigger immediate sync after login
+      _ref.read(dataSyncServiceProvider).fullSync();
     } catch (e) {
       rethrow;
     }

@@ -10,7 +10,7 @@ class MainShell extends StatelessWidget {
     _TabItem(icon: Icons.home_rounded, label: 'Home', path: '/home'),
     _TabItem(icon: Icons.notifications_rounded, label: 'Reminders', path: '/reminders'),
     _TabItem(icon: Icons.center_focus_strong_rounded, label: 'Focus', path: '/focus'),
-    _TabItem(icon: Icons.bar_chart_rounded, label: 'Analytics', path: '/analytics'),
+    _TabItem(icon: Icons.history_edu_rounded, label: 'Journal', path: '/journal'),
     _TabItem(icon: Icons.settings_rounded, label: 'Settings', path: '/settings'),
   ];
 

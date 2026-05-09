@@ -133,4 +133,47 @@ class AISuggestionService {
 
     return varietySuggestions[_random.nextInt(varietySuggestions.length)];
   }
+
+  String analyzeDailyReflection(String summary, Map<String, int> usage) {
+    // In a real app, this would call Gemini/GPT with the summary and usage.
+    // For now, we use a sophisticated rule-based engine that understands keywords.
+    
+    final totalUsageMins = usage.values.fold(0, (sum, val) => sum + val);
+    final entUsage = usage.entries
+        .where((e) => ['com.instagram.android', 'com.google.android.youtube', 'com.zhiliaoapp.musically'].contains(e.key))
+        .fold(0, (sum, e) => sum + e.value);
+
+    final summaryLower = summary.toLowerCase();
+    
+    // Keyword detection for Hindi/Hinglish/English
+    final isProductive = summaryLower.contains('padha') || 
+                        summaryLower.contains('study') || 
+                        summaryLower.contains('work') || 
+                        summaryLower.contains('kaam') ||
+                        summaryLower.contains('gym') ||
+                        summaryLower.contains('focus');
+
+    final isLazy = summaryLower.contains('waste') || 
+                  summaryLower.contains('time pass') || 
+                  summaryLower.contains('maze') || 
+                  summaryLower.contains('bakchodi') ||
+                  summaryLower.contains('soya');
+
+    if (entUsage > 120) {
+      if (isProductive) {
+        return "You claim to be productive, but you spent ${entUsage ~/ 60}h on Social Media. Stop lying to yourself. 🛡️";
+      }
+      return "A honest summary of a wasted day. ${entUsage ~/ 60}h of brain-rot is too much. Tomorrow must be better. 🦾";
+    }
+
+    if (totalUsageMins < 60 && isProductive) {
+      return "Incredible discipline! You barely touched your phone and stayed focused. You're becoming a beast. 🏆";
+    }
+
+    if (isLazy) {
+      return "Awareness is the first step. You wasted time today, but you admitted it. Now, set a strict mission for tomorrow. 🦾";
+    }
+
+    return "A balanced day. Stay consistent and keep tracking your habits. MindLock is watching. 🛡️";
+  }
 }
