@@ -194,12 +194,16 @@ class _CreateReminderScreenState extends ConsumerState<CreateReminderScreen>
           ),
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-          physics: const BouncingScrollPhysics(),
-          children: [
+      body: Hero(
+        tag: 'add_reminder',
+        child: Material(
+          color: Colors.transparent,
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+              physics: const BouncingScrollPhysics(),
+              children: [
             // ── Title ─────────────────────────────────────────────────────
             _SectionLabel('Task Title'),
             TextFormField(
@@ -355,8 +359,10 @@ class _CreateReminderScreenState extends ConsumerState<CreateReminderScreen>
           ],
         ),
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

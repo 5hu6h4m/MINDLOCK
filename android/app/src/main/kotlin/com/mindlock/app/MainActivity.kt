@@ -537,6 +537,15 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     }
 
+                    "getAppApkPath" -> {
+                        try {
+                            val path = applicationContext.packageManager.getApplicationInfo(packageName, 0).publicSourceDir
+                            result.success(path)
+                        } catch (e: Exception) {
+                            result.error("UNAVAILABLE", "Could not get APK path", e.message)
+                        }
+                    }
+
                 else -> result.notImplemented()
             }
         }

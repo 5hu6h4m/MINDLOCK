@@ -48,63 +48,63 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: '/home',
-            builder: (context, state) => const HomeScreen(),
+            pageBuilder: (context, state) => _buildPage(context, state, const HomeScreen()),
           ),
           GoRoute(
             path: '/reminders',
-            builder: (context, state) => const RemindersScreen(),
+            pageBuilder: (context, state) => _buildPage(context, state, const RemindersScreen()),
             routes: [
               GoRoute(
                 path: 'create',
-                builder: (context, state) {
+                pageBuilder: (context, state) {
                   final extra = state.extra as Map<String, dynamic>?;
-                  return CreateReminderScreen(editData: extra);
+                  return _buildPage(context, state, CreateReminderScreen(editData: extra));
                 },
               ),
               GoRoute(
                 path: 'alarm',
-                builder: (context, state) => AlarmScreen(
+                pageBuilder: (context, state) => _buildPage(context, state, AlarmScreen(
                   data: state.extra as Map<String, dynamic>? ?? {},
-                ),
+                )),
               ),
             ],
           ),
           GoRoute(
             path: '/focus',
-            builder: (context, state) => const FocusScreen(),
+            pageBuilder: (context, state) => _buildPage(context, state, const FocusScreen()),
           ),
           GoRoute(
             path: '/sleep',
-            builder: (context, state) => const SleepScreen(),
+            pageBuilder: (context, state) => _buildPage(context, state, const SleepScreen()),
           ),
           GoRoute(
             path: '/analytics',
-            builder: (context, state) => const AnalyticsScreen(),
+            pageBuilder: (context, state) => _buildPage(context, state, const AnalyticsScreen()),
           ),
           GoRoute(
             path: '/settings',
-            builder: (context, state) => const SettingsScreen(),
+            pageBuilder: (context, state) => _buildPage(context, state, const SettingsScreen()),
           ),
           GoRoute(
             path: '/insights',
-            builder: (context, state) => const InsightsScreen(),
+            pageBuilder: (context, state) => _buildPage(context, state, const InsightsScreen()),
           ),
           GoRoute(
             path: '/mission/create',
-            builder: (context, state) => const MissionCreationScreen(),
+            pageBuilder: (context, state) => _buildPage(context, state, const MissionCreationScreen()),
           ),
           GoRoute(
             path: '/journal',
-            builder: (context, state) => const JournalScreen(),
+            pageBuilder: (context, state) => _buildPage(context, state, const JournalScreen()),
           ),
         ],
       ),
       GoRoute(
         path: '/mission/active',
         parentNavigatorKey: null,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final args = state.extra as Map<String, dynamic>;
-          return ActiveMissionScreen(
+          return _buildPage(context, state, ActiveMissionScreen(
             title: args['title'],
             category: MissionCategory.values[args['category']],
             durationMinutes: args['duration'],
@@ -112,23 +112,44 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             isCoFocus: args['isCoFocus'] ?? false,
             roomCode: args['roomCode'] ?? '',
             isResuming: args['isResuming'] ?? false,
-          );
+          ));
         },
       ),
       GoRoute(
         path: '/mission/complete',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final mission = state.extra as MissionModel;
-          return MissionCompleteScreen(mission: mission);
+          return _buildPage(context, state, MissionCompleteScreen(mission: mission));
         },
       ),
       GoRoute(
         path: '/reflection/overlay',
-        builder: (context, state) => const DailyReflectionOverlay(),
+        pageBuilder: (context, state) => _buildPage(context, state, const DailyReflectionOverlay()),
       ),
     ],
   );
 });
+
+CustomTransitionPage<void> _buildPage(BuildContext context, GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 400),
+    reverseTransitionDuration: const Duration(milliseconds: 300),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return FadeTransition(
+        opacity: CurveTween(curve: Curves.easeInOut).animate(animation),
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.02),
+            end: Offset.zero,
+          ).animate(animation),
+          child: child,
+        ),
+      );
+    },
+  );
+}
 
 class AuthCheck extends StatefulWidget {
   const AuthCheck({super.key});

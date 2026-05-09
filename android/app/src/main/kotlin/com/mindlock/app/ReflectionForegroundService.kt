@@ -58,6 +58,13 @@ class ReflectionForegroundService : Service() {
         MindLockAccessibilityService.isReflectionActive = false
         val prefs = getSharedPreferences("mindlock_prefs", Context.MODE_PRIVATE)
         prefs.edit().putBoolean("is_reflection_active", false).apply()
+        
+        // Notify MindLockAccessibilityService immediately
+        val updateIntent = Intent("com.mindlock.UPDATE_STATE").apply {
+            putExtra("reflection_active", false)
+        }
+        sendBroadcast(updateIntent)
+        
         super.onDestroy()
     }
 

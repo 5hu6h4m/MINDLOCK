@@ -108,6 +108,15 @@ class MindLockAccessibilityService : AccessibilityService() {
             registerReceiver(stateReceiver, filter)
         }
         
+        // Initialize state from prefs
+        val prefs = getSharedPreferences("mindlock_prefs", Context.MODE_PRIVATE)
+        isNoScrollActive = prefs.getBoolean("no_scroll_active", false)
+        isDeepSleepActive = prefs.getBoolean("deep_sleep_active", false)
+        isMissionActive = prefs.getBoolean("mission_active", false)
+        isReflectionActive = prefs.getBoolean("is_reflection_active", false)
+        missionIntensity = prefs.getString("mission_intensity", "medium") ?: "medium"
+        missionBlockedPackages = prefs.getStringSet("mission_blocked_apps", emptySet()) ?: emptySet()
+
         vibratePattern() // Initial vibration to signal connection
     }
 
@@ -149,11 +158,11 @@ class MindLockAccessibilityService : AccessibilityService() {
         }
 
         // --- ENFORCE BLOCKING ---
-        val prefs = getSharedPreferences("mindlock_prefs", Context.MODE_PRIVATE)
-        val noScroll = prefs.getBoolean("no_scroll_active", false)
-        val deepSleep = prefs.getBoolean("deep_sleep_active", false)
-        val reflection = prefs.getBoolean("is_reflection_active", false)
-        val mission = prefs.getBoolean("mission_active", false)
+        // Prioritize memory state for instant response, fallback to prefs
+        val noScroll = isNoScrollActive
+        val deepSleep = isDeepSleepActive
+        val reflection = isReflectionActive
+        val mission = isMissionActive
 
         val isSafe = SAFE_PACKAGES.any { packageName.contains(it) }
         val isEntertainment = BLOCKED_PACKAGES.contains(packageName) || 
@@ -189,8 +198,8 @@ class MindLockAccessibilityService : AccessibilityService() {
 
         // 3. Mission Mode
         if (mission && packageName != "com.mindlock.app" && packageName != "com.android.systemui") {
-            val intensity = prefs.getString("mission_intensity", "medium")
-            val blockedApps = prefs.getStringSet("mission_blocked_apps", emptySet()) ?: emptySet()
+            val intensity = missionIntensity
+            val blockedApps = missionBlockedPackages
 
             val shouldBlock = if (intensity.equals("hardcore", ignoreCase = true) && blockedApps.isEmpty()) {
                 isEntertainment

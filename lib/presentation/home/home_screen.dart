@@ -167,9 +167,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           color: AppTheme.primaryPurple,
           backgroundColor: AppTheme.bgDarkCard,
           onRefresh: () async => setState(() {}),
-          child: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
+          child: FadeTransition(
+            opacity: _cardsController,
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
               // ── App Bar ──────────────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
@@ -206,8 +208,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       final score = discipline.calculateDailyScore(DateTime.now());
                       final pct = (score * 100).toInt();
                       
-                      return Container(
-                        padding: const EdgeInsets.all(24),
+                      return AnimatedScale(
+                        duration: const Duration(milliseconds: 600),
+                        scale: _cardsController.value,
+                        curve: Curves.easeOutBack,
+                        child: Container(
+                          padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
@@ -269,7 +275,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                             ),
                           ],
                         ),
-                      );
+                      ),
+                    );
                     },
                   ),
                 ),
@@ -346,6 +353,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ],
           ),
         ),
+      ),
       ),
 
       // ── FAB ────────────────────────────────────────────────────────────────
