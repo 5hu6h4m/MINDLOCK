@@ -42,6 +42,7 @@ void main() async {
   await HiveBoxes.openBoxes();
   await NotificationService.initialize();
   await AlarmService.initialize();
+  PlatformChannel.initializeListener();
 
   // Request critical permissions for Android
   try {

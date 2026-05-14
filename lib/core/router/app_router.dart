@@ -165,6 +165,7 @@ class _AuthCheckState extends State<AuthCheck> {
   }
 
   Future<void> _check() async {
+    await Future.delayed(const Duration(milliseconds: 500)); // Safety delay
     final user = FirebaseAuth.instance.currentUser;
     if (mounted) {
       if (user != null) {

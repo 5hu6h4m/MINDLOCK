@@ -9,6 +9,9 @@ class PlatformChannel {
   static Function(String packageName)? onEscapeAttempt;
   static Function(Map<String, dynamic> data)? onNativeAlarm;
   static Function(String route)? onNativeNavigation;
+  static Function(Map<String, dynamic> data)? onPowerConnected;
+  static Function()? onPowerDisconnected;
+  static Function(Map<String, dynamic> data)? onBatteryInfoUpdate;
 
   static void initializeListener() {
     _channel.setMethodCallHandler((call) async {
@@ -26,6 +29,20 @@ class PlatformChannel {
         final route = call.arguments['route'] as String?;
         if (route != null && onNativeNavigation != null) {
           onNativeNavigation!(route);
+        }
+      } else if (call.method == 'onPowerConnected') {
+        final data = Map<String, dynamic>.from(call.arguments);
+        if (onPowerConnected != null) {
+          onPowerConnected!(data);
+        }
+      } else if (call.method == 'onPowerDisconnected') {
+        if (onPowerDisconnected != null) {
+          onPowerDisconnected!();
+        }
+      } else if (call.method == 'onBatteryInfoUpdate') {
+        final data = Map<String, dynamic>.from(call.arguments);
+        if (onBatteryInfoUpdate != null) {
+          onBatteryInfoUpdate!(data);
         }
       }
     });
@@ -373,5 +390,18 @@ class PlatformChannel {
     try {
       await _channel.invokeMethod('triggerNightlyLockdown');
     } catch (_) {}
+  }
+
+  /// Get battery info (level, isCharging, plugType, currentNow, remainingTimeMs)
+  static Future<Map<String, dynamic>?> getBatteryInfo() async {
+    try {
+      final Map<dynamic, dynamic>? result = await _channel.invokeMethod('getBatteryInfo');
+      if (result != null) {
+        return Map<String, dynamic>.from(result);
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
   }
 }

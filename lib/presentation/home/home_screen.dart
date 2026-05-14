@@ -16,11 +16,12 @@ import '../../services/streak_service.dart';
 import '../../services/platform_channel.dart';
 import '../../core/providers/settings_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../../data/local/models/user_stats_model.dart';
-import '../../data/local/hive_boxes.dart';
 import '../../services/streak_service.dart';
+import '../../services/charging_service.dart';
+import './widgets/charging_stats_card.dart';
+import '../overlay/charging_animation_overlay.dart';
 
-final aiSuggestionProvider = FutureProvider<SuggestionModel>((ref) async {
+final aiSuggestionProvider = Provider<SuggestionModel>((ref) {
   final service = ref.watch(aiSuggestionServiceProvider);
   return service.getContextualSuggestion();
 });
@@ -50,6 +51,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _checkDisclosure();
     _checkPermissions();
     _initDailyReflection();
+    _initChargingListener();
+  }
+
+  void _initChargingListener() {
+    // We can't listen to Provider inside initState easily without ref.
+    // So we use a PostFrameCallback or just use the build method's ref.listen
   }
 
   Future<void> _checkDisclosure() async {
@@ -160,6 +167,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final emergencyReminders = repo.getEmergency();
     final completedToday = repo.totalCompleted;
 
+    // Listen for charging connection to show overlay
+    ref.listen(chargingProvider, (previous, next) {
+      if (next.isCharging && (previous == null || !previous.isCharging)) {
+        _showChargingOverlay(next);
+      }
+    });
+
     return Scaffold(
       backgroundColor: AppTheme.bgDark,
       body: SafeArea(
@@ -193,12 +207,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               if (emergencyReminders.isNotEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                    child: _EmergencyBanner(reminders: emergencyReminders),
-                  ),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  child: _EmergencyBanner(reminders: emergencyReminders),
                 ),
+              ),
 
-              // ── Discipline Meter ─────────────────────────────────────────
+            // ── Charging Stats ───────────────────────────────────────────
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: ChargingStatsCard(),
+              ),
+            ),
+
+            // ── Discipline Meter ─────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -455,6 +477,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       ),
     );
   }
+  void _showChargingOverlay(BatteryState battery) {
+    String speed = "Charging";
+    if (battery.speed == ChargingSpeed.ultra) speed = "Ultra Super Charge";
+    else if (battery.speed == ChargingSpeed.fast) speed = "Fast Charging";
+
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 400),
+      pageBuilder: (context, anim1, anim2) {
+        return ChargingAnimationOverlay(
+          level: battery.level,
+          speedType: speed,
+          onDismiss: () => Navigator.pop(context),
+        );
+      },
+    );
+  }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -571,9 +612,8 @@ class _AISuggestionSliver extends ConsumerWidget {
               ),
               child: Consumer(
                 builder: (context, ref, _) {
-                  final suggestionAsync = ref.watch(aiSuggestionProvider);
-                  return suggestionAsync.when(
-                    data: (s) => Column(
+                  final s = ref.watch(aiSuggestionProvider);
+                  return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
@@ -625,11 +665,7 @@ class _AISuggestionSliver extends ConsumerWidget {
                           ),
                         ],
                       ],
-                    ),
-                    loading: () => const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2)),
-                    error: (_, __) => const Text('Unable to load coach insights'),
-                  );
+                    );
                 },
               ),
             ),

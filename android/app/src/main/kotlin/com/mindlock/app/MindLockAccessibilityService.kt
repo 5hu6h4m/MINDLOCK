@@ -46,6 +46,12 @@ class MindLockAccessibilityService : AccessibilityService() {
             "com.google.android.inputmethod",
             "com.samsung.android.honeyboard",
             "com.microsoft.emmx",
+            "com.coloros.wirelesssettings", // Realme/Oppo Hotspot
+            "com.oplus.wirelesssettings",  // Newer Realme/Oppo
+            "com.oplus.battery",           // Realme Power Management
+            "com.coloros.securitypermission",
+            "com.oplus.securitypermission",
+            "com.android.providers.settings",
             "inputmethod",
             "keyboard"
         )

@@ -24,6 +24,7 @@ import android.os.Vibrator
 import android.view.WindowManager
 import android.app.usage.UsageStatsManager
 import androidx.work.*
+import android.os.BatteryManager
 import java.util.*
 import java.util.concurrent.TimeUnit
 
@@ -111,6 +112,108 @@ class MainActivity : FlutterActivity() {
         } else if (route != null) {
             flutterChannel?.invokeMethod("onNativeNavigation", mapOf("route" to route))
         }
+    }
+
+    private var lastBatteryUpdate = 0L
+
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent == null) return
+            
+            when (intent.action) {
+                Intent.ACTION_POWER_CONNECTED -> {
+                    flutterChannel?.invokeMethod("onPowerConnected", getBatteryInfo())
+                }
+                Intent.ACTION_POWER_DISCONNECTED -> {
+                    flutterChannel?.invokeMethod("onPowerDisconnected", null)
+                }
+                Intent.ACTION_BATTERY_CHANGED -> {
+                    val now = System.currentTimeMillis()
+                    if (now - lastBatteryUpdate > 1000) {
+                        lastBatteryUpdate = now
+                        val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                        if (status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL) {
+                            flutterChannel?.invokeMethod("onBatteryInfoUpdate", getBatteryInfo())
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun getBatteryInfo(): Map<String, Any> {
+        val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+        val intent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        
+        val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+        val batteryPct = level * 100 / scale.toFloat()
+        
+        val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+        val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+        
+        val chargePlug = intent?.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1) ?: -1
+        val plugType = when (chargePlug) {
+            BatteryManager.BATTERY_PLUGGED_AC -> "AC"
+            BatteryManager.BATTERY_PLUGGED_USB -> "USB"
+            BatteryManager.BATTERY_PLUGGED_WIRELESS -> "Wireless"
+            else -> "Unknown"
+        }
+
+        // Get current in microamperes and convert to milliamperes
+        var currentNow = 0L
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            currentNow = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
+            // Some devices return microamperes, some milliamperes. 
+            // Usually if it's > 10,000 it's microamperes.
+            if (Math.abs(currentNow) > 10000) {
+                currentNow /= 1000
+            }
+            // Positive value means charging, negative means discharging (on some devices it's inverted)
+            // We'll return absolute value if charging
+        }
+
+        var remainingTime = -1L
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            remainingTime = bm.computeChargeTimeRemaining() // milliseconds
+        }
+
+        // Self-Calibrating Time Estimation
+        if (isCharging && currentNow > 50) {
+            val chargeCounter = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER) // microampere-hours
+            
+            if (chargeCounter > 0 && batteryPct > 5) {
+                // Estimate Total Capacity (µAh) = Current Charge / (Level / 100)
+                val estimatedCapacity = (chargeCounter.toDouble() / (batteryPct / 100.0)).toLong()
+                // Remaining Charge (µAh)
+                val remainingCharge = (estimatedCapacity * (100.0 - batteryPct) / 100.0).toLong()
+                
+                // Time (h) = Remaining Charge (µAh) / Current (µA)
+                // We need Current in µA for this. currentNow is in mA.
+                val currentUA = currentNow * 1000.0
+                
+                // Time (ms) = (Remaining µAh / Current µA) * 3,600,000
+                val estimatedMs = (remainingCharge.toDouble() / currentUA.coerceAtLeast(100.0)) * 3600000.0
+                
+                // Only overwrite if it looks more realistic than system or if system is -1
+                if (remainingTime <= 0 || (estimatedMs < remainingTime && remainingTime > 1000 * 60 * 60)) {
+                    remainingTime = estimatedMs.toLong()
+                }
+            } else if (remainingTime <= 0) {
+                // Fallback to legacy formula if charge counter is unavailable
+                val remainingPct = 100 - batteryPct
+                val estimatedMs = (remainingPct * 4500 * 36000L) / currentNow.coerceAtLeast(1)
+                remainingTime = estimatedMs.toLong()
+            }
+        }
+
+        return mapOf(
+            "level" to batteryPct.toInt(),
+            "isCharging" to isCharging,
+            "plugType" to plugType,
+            "currentNow" to Math.abs(currentNow).toInt(),
+            "remainingTimeMs" to remainingTime
+        )
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -546,6 +649,10 @@ class MainActivity : FlutterActivity() {
                         }
                     }
 
+                    "getBatteryInfo" -> {
+                        result.success(getBatteryInfo())
+                    }
+
                 else -> result.notImplemented()
             }
         }
@@ -607,6 +714,15 @@ class MainActivity : FlutterActivity() {
             } else {
                 registerReceiver(missionEscapeReceiver, IntentFilter("com.MindLock.MISSION_ESCAPE_ATTEMPT"))
             }
+
+            // Register battery receiver
+            val batteryFilter = IntentFilter().apply {
+                addAction(Intent.ACTION_POWER_CONNECTED)
+                addAction(Intent.ACTION_POWER_DISCONNECTED)
+                addAction(Intent.ACTION_BATTERY_CHANGED)
+            }
+            registerReceiver(batteryReceiver, batteryFilter)
+            
         } catch (e: Exception) {}
     }
 
@@ -614,6 +730,7 @@ class MainActivity : FlutterActivity() {
         super.onStop()
         try {
             unregisterReceiver(missionEscapeReceiver)
+            unregisterReceiver(batteryReceiver)
         } catch (e: Exception) {}
     }
 
