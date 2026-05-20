@@ -191,7 +191,7 @@ class _FakeLockScreenState extends State<FakeLockScreen>
     });
 
     if (_shieldTaps >= 5) {
-      HapticFeedback.doubleTap();
+      HapticFeedback.heavyImpact();
       setState(() {
         _shieldTaps = 0;
         _showPinSheet = true;
