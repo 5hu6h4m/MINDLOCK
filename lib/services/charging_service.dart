@@ -85,9 +85,9 @@ class ChargingService extends StateNotifier<BatteryState> {
     final current = (data['currentNow'] as num?)?.toInt() ?? 0;
     
     ChargingSpeed speed = ChargingSpeed.normal;
-    if (current > 4000) {
+    if (current.abs() > 4000) {
       speed = ChargingSpeed.ultra;
-    } else if (current > 1500) {
+    } else if (current.abs() > 1500) {
       speed = ChargingSpeed.fast;
     }
 

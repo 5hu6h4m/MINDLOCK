@@ -14,6 +14,8 @@ import android.view.KeyEvent
 import android.widget.Toast
 import android.app.AlarmManager
 import android.app.PendingIntent
+import android.os.Handler
+import android.os.Looper
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -32,6 +34,18 @@ class MainActivity : FlutterActivity() {
 
     private val CHANNEL = "com.MindLock/native"
     private var flutterChannel: MethodChannel? = null
+    private var lastBatteryUpdate = 0L
+    private val updateHandler = Handler(Looper.getMainLooper())
+    private var isPolling = false
+
+    private val pollRunnable = object : Runnable {
+        override fun run() {
+            if (isPolling) {
+                flutterChannel?.invokeMethod("onBatteryInfoUpdate", getBatteryInfo())
+                updateHandler.postDelayed(this, 500) // Poll every 500ms
+            }
+        }
+    }
 
     companion object {
         var instance: MainActivity? = null
@@ -114,8 +128,6 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private var lastBatteryUpdate = 0L
-
     private val batteryReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent == null) return
@@ -123,18 +135,19 @@ class MainActivity : FlutterActivity() {
             when (intent.action) {
                 Intent.ACTION_POWER_CONNECTED -> {
                     flutterChannel?.invokeMethod("onPowerConnected", getBatteryInfo())
+                    startPolling()
                 }
                 Intent.ACTION_POWER_DISCONNECTED -> {
                     flutterChannel?.invokeMethod("onPowerDisconnected", null)
+                    stopPolling()
                 }
                 Intent.ACTION_BATTERY_CHANGED -> {
-                    val now = System.currentTimeMillis()
-                    if (now - lastBatteryUpdate > 1000) {
-                        lastBatteryUpdate = now
-                        val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-                        if (status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL) {
-                            flutterChannel?.invokeMethod("onBatteryInfoUpdate", getBatteryInfo())
-                        }
+                    // Still handle broadcast for status changes
+                    val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                    if (status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL) {
+                        if (!isPolling) startPolling()
+                    } else {
+                        stopPolling()
                     }
                 }
             }
@@ -177,33 +190,22 @@ class MainActivity : FlutterActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             remainingTime = bm.computeChargeTimeRemaining() // milliseconds
         }
+        
+        // If system estimation is valid (above 0 and below 24 hours), use it.
+        // Otherwise, use our self-calibrating fallback.
+        val isSystemEstimateValid = remainingTime > 0 && remainingTime < 1000 * 60 * 60 * 24
 
-        // Self-Calibrating Time Estimation
-        if (isCharging && currentNow > 50) {
-            val chargeCounter = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER) // microampere-hours
+        // Self-Calibrating Fallback
+        if (isCharging && !isSystemEstimateValid) {
+            val absCurrent = Math.abs(currentNow).coerceAtLeast(1L)
+            val remainingPct = (100.0 - batteryPct).coerceAtLeast(0.0)
             
-            if (chargeCounter > 0 && batteryPct > 5) {
-                // Estimate Total Capacity (µAh) = Current Charge / (Level / 100)
-                val estimatedCapacity = (chargeCounter.toDouble() / (batteryPct / 100.0)).toLong()
-                // Remaining Charge (µAh)
-                val remainingCharge = (estimatedCapacity * (100.0 - batteryPct) / 100.0).toLong()
-                
-                // Time (h) = Remaining Charge (µAh) / Current (µA)
-                // We need Current in µA for this. currentNow is in mA.
-                val currentUA = currentNow * 1000.0
-                
-                // Time (ms) = (Remaining µAh / Current µA) * 3,600,000
-                val estimatedMs = (remainingCharge.toDouble() / currentUA.coerceAtLeast(100.0)) * 3600000.0
-                
-                // Only overwrite if it looks more realistic than system or if system is -1
-                if (remainingTime <= 0 || (estimatedMs < remainingTime && remainingTime > 1000 * 60 * 60)) {
-                    remainingTime = estimatedMs.toLong()
-                }
-            } else if (remainingTime <= 0) {
-                // Fallback to legacy formula if charge counter is unavailable
-                val remainingPct = 100 - batteryPct
-                val estimatedMs = (remainingPct * 4500 * 36000L) / currentNow.coerceAtLeast(1)
-                remainingTime = estimatedMs.toLong()
+            // Basic but reliable formula: (Remaining% of 5000mAh) / Current
+            // Time (ms) = (remainingPct / 100) * (5000 / absCurrent) * 3600 * 1000
+            val estimatedMs = (remainingPct * 50 * 3600000.0 / absCurrent).toLong()
+            
+            if (estimatedMs > 0) {
+                remainingTime = estimatedMs
             }
         }
 
@@ -214,6 +216,18 @@ class MainActivity : FlutterActivity() {
             "currentNow" to Math.abs(currentNow).toInt(),
             "remainingTimeMs" to remainingTime
         )
+    }
+
+    private fun startPolling() {
+        if (!isPolling) {
+            isPolling = true
+            updateHandler.post(pollRunnable)
+        }
+    }
+
+    private fun stopPolling() {
+        isPolling = false
+        updateHandler.removeCallbacks(pollRunnable)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

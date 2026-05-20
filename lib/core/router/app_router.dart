@@ -22,6 +22,8 @@ import '../../core/constants/enums.dart';
 import '../../data/local/models/mission_model.dart';
 import '../../presentation/reflection/daily_reflection_overlay.dart';
 import '../../presentation/reflection/journal_screen.dart';
+import '../../presentation/focus/fake_lock_screen.dart';
+
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -126,8 +128,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/reflection/overlay',
         pageBuilder: (context, state) => _buildPage(context, state, const DailyReflectionOverlay()),
       ),
+      GoRoute(
+        path: '/fake-lock',
+        pageBuilder: (context, state) => _buildPage(context, state, const FakeLockScreen()),
+      ),
     ],
   );
+
 });
 
 CustomTransitionPage<void> _buildPage(BuildContext context, GoRouterState state, Widget child) {

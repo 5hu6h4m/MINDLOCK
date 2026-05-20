@@ -744,6 +744,16 @@ class _QuickActionsGrid extends ConsumerWidget {
           label: 'Nightly Test',
           color: AppTheme.accentRed,
           onTap: () => PlatformChannel.triggerNightlyLockdown()),
+      _QAction(
+          icon: Icons.lock_person_rounded,
+          label: 'Study Lock',
+          color: AppTheme.accentRed,
+          onTap: () => context.push('/fake-lock')),
+      _QAction(
+          icon: Icons.history_edu_rounded,
+          label: 'Daily Journal',
+          color: AppTheme.primaryPurple,
+          onTap: () => context.go('/journal')),
     ];
 
     return GridView.count(
