@@ -1,33 +1,82 @@
-# MINDLOCK Android App
+<div align="center">
 
-A premium digital discipline and reminder management Android app built with Flutter.
+<img src="https://img.shields.io/badge/MindLock-Digital%20Discipline%20System-6C63FF?style=for-the-badge&logo=android&logoColor=white"/>
 
-## 🚀 Quick Setup
+# 🧠 MindLock
+### *Reclaim Your Focus. Build Real Discipline.*
 
-### Prerequisites
-- Windows PC with Git installed
-- Android phone (USB debugging enabled) OR Android emulator
-- Java JDK (already installed ✅)
+[![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?style=flat-square&logo=android&logoColor=white)](https://github.com/5hu6h4m/MINDLOCK/releases)
+[![Flutter](https://img.shields.io/badge/Built%20With-Flutter-54C5F8?style=flat-square&logo=flutter&logoColor=white)](https://flutter.dev)
+[![Version](https://img.shields.io/badge/Version-1.0.3-6C63FF?style=flat-square)](https://github.com/5hu6h4m/MINDLOCK/releases/tag/v1.0.3)
+[![License](https://img.shields.io/badge/License-MIT-FF6584?style=flat-square)](LICENSE)
 
-### Step 1: Wait for Flutter Download
-Flutter SDK is downloading to `C:\flutter\flutter.zip`. Once complete:
+<br/>
 
-### Step 2: Run Setup Script
-```powershell
-powershell -ExecutionPolicy Bypass -File "d:\DEV\projects\COSTOM REMINDER\MINDLOCK\setup_flutter.ps1"
-```
+### ⬇️ [Download Latest APK — v1.0.3](https://github.com/5hu6h4m/MINDLOCK/releases/download/v1.0.3/MindLock_v1.0.3.apk)
 
-### Step 3: Run the App
-```powershell
-cd "d:\DEV\projects\COSTOM REMINDER\MINDLOCK"
-flutter run
-```
+> Click the link above → APK downloads instantly. No sign-up. No Play Store needed.
 
-### Step 4: Build APK
-```powershell
-flutter build apk --release
-# APK will be at: build/app/outputs/flutter-apk/app-release.apk
-```
+</div>
+
+---
+
+## 📖 What is MindLock?
+
+**MindLock** is a premium **Digital Discipline System** for Android — not just another reminder app. It's a complete productivity OS for your phone, built to ensure you stay locked in, focused, and consistent every single day.
+
+Built entirely with **Flutter + Dart**, with deep **native Android (Kotlin)** integration for full-system control.
+
+---
+
+## ✨ Core Features
+
+### 🔔 Smart Reminders
+- **4 Priority Levels** — Low / Medium / High / Emergency
+- **Full-Screen Overlay** — Reminder takes over the screen; can't be ignored
+- **Auto-Repeat** — Keeps firing until you tap "Done" — no escaping it
+- **Today / Upcoming / Completed** tabs for clean task management
+
+### 🚀 Mission Mode (Focus System)
+| Intensity | What Happens |
+|-----------|-------------|
+| 🟢 **Light** | Gentle timer with focus nudges |
+| 🟡 **Medium** | Actively blocks Instagram, YouTube, Games |
+| 🔴 **Hardcore** | Total lockdown — escape attempts penalize your score |
+
+### 👥 Co-Focus Buddy *(Multiplayer Focus)*
+- Create or join a **4-digit room**
+- **Shared punishment** — if anyone breaks focus, *everyone* fails
+- Social accountability that actually works
+
+### 📊 Analytics & Streaks
+- **Discipline Score** — live % based on completions & focus sessions
+- **Visual charts** — weekly & monthly trends
+- **Streak tracking** — don't break the chain!
+
+### 🛡️ Sleep Protection
+- Lock your phone after a set bedtime — no more doomscrolling
+
+### 🎨 Premium UI
+- **Glassmorphism** design with smooth micro-animations
+- **Dark / Light / System** theme modes
+- **Cinematic onboarding** experience
+- **Floating navigation bar**
+
+---
+
+## 🏗️ Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| **Framework** | Flutter 3.x (Dart) |
+| **Local DB** | Hive (NoSQL, offline-first) |
+| **Navigation** | GoRouter |
+| **State Management** | Provider / Riverpod |
+| **Native Android** | Kotlin — MethodChannel bridge |
+| **Notifications** | flutter_local_notifications |
+| **Background Service** | Android ForegroundService |
+| **App Monitoring** | AccessibilityService |
+| **Boot Persistence** | BootReceiver |
 
 ---
 
@@ -36,92 +85,94 @@ flutter build apk --release
 ```
 MINDLOCK/
 ├── lib/
-│   ├── main.dart                    # App entry point
+│   ├── main.dart                          # App entry point
 │   ├── core/
-│   │   ├── constants/enums.dart     # Priority, StrictMode, etc.
-│   │   ├── router/app_router.dart   # GoRouter navigation
-│   │   └── theme/app_theme.dart     # Dark/light Material 3 theme
+│   │   ├── constants/enums.dart           # Priority, StrictMode enums
+│   │   ├── router/app_router.dart         # GoRouter config
+│   │   └── theme/app_theme.dart           # Material 3 dark/light theme
 │   ├── data/
 │   │   ├── local/
-│   │   │   ├── hive_boxes.dart      # Hive DB manager
-│   │   │   └── models/             # ReminderModel, ScreenSchedule
+│   │   │   ├── hive_boxes.dart            # Hive DB manager
+│   │   │   └── models/                    # ReminderModel, ScreenSchedule
 │   │   └── repositories/
 │   │       └── reminder_repository.dart
 │   ├── services/
-│   │   ├── notification_service.dart  # Local notification channels
-│   │   └── platform_channel.dart     # Native Android bridge
+│   │   ├── notification_service.dart      # Notification channels
+│   │   └── platform_channel.dart          # Native Android bridge
 │   └── presentation/
-│       ├── home/home_screen.dart         # Dashboard
-│       ├── reminders/                    # List + Create
-│       ├── focus/focus_screen.dart       # Countdown timer
-│       ├── sleep/sleep_screen.dart       # Sleep protection
+│       ├── home/home_screen.dart          # Dashboard
+│       ├── reminders/                     # List + Create screens
+│       ├── focus/focus_screen.dart        # Mission Mode
+│       ├── sleep/sleep_screen.dart        # Sleep protection
 │       ├── analytics/analytics_screen.dart
 │       ├── settings/settings_screen.dart
 │       ├── onboarding/onboarding_screen.dart
 │       ├── overlay/full_screen_reminder_overlay.dart
-│       └── shell/main_shell.dart         # Nav bar
+│       └── shell/main_shell.dart          # Nav bar shell
 ├── android/
-│   ├── app/src/main/
-│   │   ├── kotlin/com/mindlock/app/
-│   │   │   ├── MainActivity.kt              # MethodChannel bridge
-│   │   │   ├── MINDLOCKAccessibilityService.kt
-│   │   │   ├── ForegroundReminderService.kt
-│   │   │   └── BootReceiver.kt
-│   │   ├── AndroidManifest.xml              # All permissions
-│   │   └── res/xml/accessibility_service_config.xml
-│   └── build.gradle
-└── setup_flutter.ps1  # Run this first!
+│   └── app/src/main/kotlin/com/mindlock/app/
+│       ├── MainActivity.kt                # MethodChannel bridge
+│       ├── MINDLOCKAccessibilityService.kt
+│       ├── ForegroundReminderService.kt
+│       └── BootReceiver.kt
+└── assets/
 ```
 
 ---
 
-## 🔑 Key Features Built
+## 🔑 Android Permissions
 
-| Feature | Status |
-|---|---|
-| Home Dashboard (stats, emergency banner, quick actions) | ✅ |
-| Reminder CRUD (create, list, complete, delete) | ✅ |
-| Priority levels (Low/Medium/High/Emergency) | ✅ |
-| Repeat reminder engine | ✅ |
-| Full-screen overlay with strict mode | ✅ |
-| Sleep protection timer | ✅ |
-| Focus mode countdown | ✅ |
-| Analytics + streak badges | ✅ |
-| Settings + permission management | ✅ |
-| Cinematic onboarding | ✅ |
-| Floating navigation bar | ✅ |
-| Native Android foreground service | ✅ |
-| Accessibility service (app monitoring) | ✅ |
-| Boot receiver (survives reboot) | ✅ |
-| All required permissions | ✅ |
+MindLock needs these to work fully — the onboarding screen guides you through each one:
+
+| Permission | Why Needed |
+|-----------|-----------|
+| **Display over other apps** | Full-screen reminder overlays |
+| **Accessibility Service** | App detection & distraction blocking |
+| **Battery Optimization Exempt** | Reliable background alarms |
+| **POST_NOTIFICATIONS** | Auto-requested on Android 13+ |
+| **RECEIVE_BOOT_COMPLETED** | Survives phone restarts |
 
 ---
 
-## 🛡️ Required Permissions (Android)
+## 📲 Installation
 
-The onboarding screen guides users to enable:
+### Option 1 — Direct APK (Recommended)
+```
+👉 https://github.com/5hu6h4m/MINDLOCK/releases/download/v1.0.3/MindLock_v1.0.3.apk
+```
+1. Click the link — APK downloads directly
+2. Open the downloaded file on your Android device
+3. Tap **"Install"** (enable *Unknown Sources* if prompted)
+4. Done ✅
 
-1. **Display over other apps** → Full-screen reminders over lock screen
-2. **Accessibility Service** → App detection, media control, home navigation
-3. **Battery Optimization Exempt** → Reliable background alarms
-4. **Notifications** → Auto-requested on Android 13+
-
----
-
-## 🔥 Firebase Setup (Optional)
-
-To enable cloud sync:
-1. Create project at [console.firebase.google.com](https://console.firebase.google.com)
-2. Add Android app with package `com.mindlock.app`
-3. Download `google-services.json`
-4. Place it in `android/app/google-services.json`
-5. Uncomment Firebase lines in `android/app/build.gradle`
-
----
-
-## 📱 Install on Phone
-
+### Option 2 — Build from Source
 ```powershell
-# Via ADB (USB connected phone)
-adb install build/app/outputs/flutter-apk/app-release.apk
+# Prerequisites: Flutter SDK, Android SDK, JDK 17+
+git clone https://github.com/5hu6h4m/MINDLOCK.git
+cd MINDLOCK
+flutter pub get
+flutter build apk --release
+# APK → build/app/outputs/flutter-apk/app-release.apk
 ```
+
+---
+
+## 🗺️ Roadmap
+
+- [ ] Google Play Store release
+- [ ] Firebase cloud sync
+- [ ] iOS support
+- [ ] Widget for home screen discipline score
+- [ ] AI-powered habit suggestions
+
+---
+
+## 👨‍💻 Developer
+
+<div align="center">
+
+**Built with ❤️ by [5hu6h4m](https://github.com/5hu6h4m)**
+
+*Digital Discipline System — v1.0.3*
+
+</div>
