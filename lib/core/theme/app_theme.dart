@@ -15,12 +15,39 @@ class AppTheme {
   static const Color accentGreen = Color(0xFF4FC295);
   static const Color accentRed = Color(0xFFFF5263);
   static const Color accentAmber = Color(0xFFFFC53D);
+  static const Color accentOrange = Color(0xFFFF6B35);
 
   static const Color textPrimary = Color(0xFFEAEAEA);
   static const Color textSecondary = Color(0xFFAAAAAA);
   static const Color textMuted = Color(0xFF777777);
 
   static const Color borderColor = Color(0xFF2A2A35);
+  static const Color borderColorLight = Color(0xFF3A3A4A);
+
+  // ─── Gradient Presets ────────────────────────────────────────────────────
+  static const LinearGradient purpleGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF8A78F0), Color(0xFF5B9CF0)],
+  );
+
+  static const LinearGradient greenGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF4FC295), Color(0xFF69C9D0)],
+  );
+
+  static const LinearGradient redGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFFF5263), Color(0xFFFF6B35)],
+  );
+
+  static const LinearGradient amberGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFFFC53D), Color(0xFFFF6B35)],
+  );
 
   // ─── Dark Theme ──────────────────────────────────────────────────────────
   static ThemeData get darkTheme {
@@ -91,6 +118,37 @@ class AppTheme {
           ),
         ),
       ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return primaryPurple;
+          return textMuted;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return primaryPurple.withOpacity(0.3);
+          }
+          return borderColor;
+        }),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: bgDarkElevated,
+        selectedColor: primaryPurple.withOpacity(0.2),
+        labelStyle: GoogleFonts.inter(fontSize: 13, color: textSecondary),
+        side: const BorderSide(color: borderColor, width: 0.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      dividerTheme: const DividerThemeData(
+        color: borderColor,
+        thickness: 0.5,
+      ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: bgDarkElevated,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: borderColor, width: 0.5),
+        ),
+        textStyle: GoogleFonts.inter(fontSize: 12, color: textPrimary),
+      ),
     );
   }
 
@@ -108,6 +166,20 @@ class AppTheme {
       ),
       scaffoldBackgroundColor: const Color(0xFFF0F0FA),
       textTheme: _buildTextTheme(const Color(0xFF1A1A2E)),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryPurple,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+          textStyle: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 
@@ -165,6 +237,18 @@ class AppTheme {
         color: baseColor,
         letterSpacing: 0.5,
       ),
+      labelMedium: GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: baseColor.withOpacity(0.8),
+        letterSpacing: 0.3,
+      ),
+      labelSmall: GoogleFonts.inter(
+        fontSize: 10,
+        fontWeight: FontWeight.w600,
+        color: baseColor.withOpacity(0.6),
+        letterSpacing: 0.5,
+      ),
     );
   }
 }
@@ -177,6 +261,7 @@ class GlassDecoration {
     Color? borderColor,
     double borderRadius = 20,
     Gradient? gradient,
+    Color? glowColor,
   }) {
     return BoxDecoration(
       borderRadius: BorderRadius.circular(borderRadius),
@@ -199,7 +284,27 @@ class GlassDecoration {
           blurRadius: 20,
           offset: const Offset(0, 8),
         ),
+        if (glowColor != null)
+          BoxShadow(
+            color: glowColor.withOpacity(0.15),
+            blurRadius: 30,
+            spreadRadius: 2,
+          ),
       ],
+    );
+  }
+
+  /// Builds a card-style glass decoration with a colored glow effect.
+  static BoxDecoration glow({
+    required Color color,
+    double borderRadius = 20,
+    double opacity = 0.08,
+  }) {
+    return build(
+      borderRadius: borderRadius,
+      opacity: opacity,
+      glowColor: color,
+      borderColor: color.withOpacity(0.25),
     );
   }
 }
